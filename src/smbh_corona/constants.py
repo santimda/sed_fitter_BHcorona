@@ -22,10 +22,9 @@ day = 86400               # 1 d in seconds
 M_sun = 1.989e33
 M_sun_yr = M_sun/yr
 R_sun = 6.96e10           # solar radius
-L_sun = 3.9e33            # solar luminosity 
+L_sun = 3.9e33            # solar luminosity
 au = 1.496e13             # astronomical unit
 lightday = c * 86400      # lightday
 mJy = 1e-26               # mJy to cgs
 arcsec = 1/206265         # number of arcsec in a radian
 mas_to_rad = 1e-3/arcsec  # convert milliarcsec to radians
-

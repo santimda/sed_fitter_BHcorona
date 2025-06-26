@@ -15,14 +15,14 @@ nice_fonts = {
     "legend.fontsize": 14,
     "xtick.labelsize": 16,
     "ytick.labelsize": 16,
-    "xtick.major.size": 5.5,  
-    "xtick.minor.size": 4,  
-    "ytick.major.size": 5.5, 
-    "ytick.minor.size": 3.5,  
-    "xtick.major.width": 1.4, 
-    "xtick.minor.width": 1.3,  
-    "ytick.major.width": 1.4, 
-    "ytick.minor.width": 1.3, 
+    "xtick.major.size": 5.5,
+    "xtick.minor.size": 4,
+    "ytick.major.size": 5.5,
+    "ytick.minor.size": 3.5,
+    "xtick.major.width": 1.4,
+    "xtick.minor.width": 1.3,
+    "ytick.major.width": 1.4,
+    "ytick.minor.width": 1.3,
 }
 
 matplotlib.rcParams.update(nice_fonts)
@@ -57,16 +57,16 @@ def plot_components_confidence_intervals(ax, nu, components_samples, sigmas=1):
 
         if sigmas == 1:
             ax.fill_between(nu/1e9, lower_bounds[0], upper_bounds[0], color=component_colors[i],
-                            alpha=alphas[1], edgecolor=None)  
+                            alpha=alphas[1], edgecolor=None)
         elif sigmas == 2:
             ax.fill_between(nu/1e9, lower_bounds[0], upper_bounds[0], color=component_colors[i],
-                            alpha=alphas[1], edgecolor=None)  
+                            alpha=alphas[1], edgecolor=None)
             ax.fill_between(nu/1e9, lower_bounds[1], upper_bounds[1], color=component_colors[i],
-                            alpha=alphas[2], edgecolor=None)  
+                            alpha=alphas[2], edgecolor=None)
         elif sigmas == 3:
             for lower, upper, label, alpha in zip(lower_bounds, upper_bounds, labels, alphas):
                 ax.fill_between(nu/1e9, lower, upper, color=color,
-                                alpha=alpha, edgecolor=None)  
+                                alpha=alpha, edgecolor=None)
         else:
             'Wrong sigmas value, only 1, 2, 3 are allowed'
 
@@ -120,15 +120,14 @@ def plot_bands(ax, ymin, ymax, bands_to_plot, y_positions=None, colors=None):
         'B8': {'start': 385, 'width': 115}
     }
 
-    
     default_color = 'grey'
     default_pos = np.sqrt(ymin*ymax)
-    
+
     if y_positions is None:
         y_positions = {band: default_pos for band in bands_to_plot}
     else:
         y_positions = {band: y_positions[i] for i, band in enumerate(bands_to_plot)}
-    
+
     if colors is None:
         colors = {band: default_color for band in bands_to_plot}
     else:
@@ -139,11 +138,11 @@ def plot_bands(ax, ymin, ymax, bands_to_plot, y_positions=None, colors=None):
             band = bands_dict[band_name]
             band['pos'] = y_positions[band_name]
             band['color'] = colors[band_name]
-            
+
             # Add the rectangle
             ax.add_patch(Rectangle((band['start'], ymin), band['width'], ymax - ymin,
                                    edgecolor='none', facecolor=band['color'], alpha=0.1, lw=0))
-            
+
             # Add the vertical dashed line with the text
             ax.axvline(band['start'] + band['width'] / 2, ymin=0, ymax=1, color=band['color'], alpha=0.7, linestyle='--')
             ax.text(band['start'] + band['width'] / 2 + 0.9, band['pos'], band_name, color=band['color'],

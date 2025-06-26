@@ -1,6 +1,6 @@
 '''
-Module taken from: https://github.com/bmargalit/thermal-synchrotron. 
-Some modifications were introduced to optimize the speed for MCMC fitting. 
+Module taken from: https://github.com/bmargalit/thermal-synchrotron.
+Some modifications were introduced to optimize the speed for MCMC fitting.
 
 -------------
 
@@ -157,7 +157,7 @@ def f_fun(Theta):
 @memoize
 def g_fun(Theta, p=3.0):
     '''Utility function g(Theta); eq. (8) of MQ21
-    Important!: Fixed error according to Margalit+24 
+    Important!: Fixed error according to Margalit+24
     (priv. comm., new repo: https://github.com/bmargalit/thermal-synchrotron-v2/blob/main/thermalsyn_v2.py)
 
     Parameters

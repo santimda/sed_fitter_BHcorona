@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from constants import *
-from thermalsyn import *
+from smbh_corona.constants import *
+from smbh_corona.thermalsyn import *
 from astropy.cosmology import Planck18
 
 
@@ -14,14 +14,13 @@ def t_ff(r_c, M_BH):
     M = BH mass in solar masses'''
     return 2.5 * 1e5 * np.sqrt(r_c/40) * (M_BH/1e8)
 
-    
 def calculate_Lnu(nu, M_BH, T, r_c, tau_T, eps_B, p, delta):
     '''Calculate the corona luminosity at frequencies "nu".
     Output: luminosity in erg/s/Hz.
 
     Parameters:
     -----------
-    nu: np.array with frequencies (in the source reference frame) 
+    nu: np.array with frequencies (in the source reference frame)
     M_BH: BH mass in units of 10^8 M_sun
     T: plasma temperature (in K)
     r_c: corona radius (in gravitational radii)
@@ -46,11 +45,11 @@ def calculate_Lnu(nu, M_BH, T, r_c, tau_T, eps_B, p, delta):
 def S_nu(nu_obs, z=0.01, M_BH=1.0, T=1e9, r_c=80, tau_T=1.0, eps_B=0.05,
          p=2.5, delta=0.1, D_L=None):
     '''Calculate the corona synchrotron flux at the frequencies "nu_obs".
-    Output: fluxes in mJy. 
+    Output: fluxes in mJy.
 
-    Parameters: 
+    Parameters:
     -----------
-    nu_obs: np.array with frequencies (in the observer reference frame) 
+    nu_obs: np.array with frequencies (in the observer reference frame)
     M_BH: BH mass in units of 10^8 M_sun
     T: plasma temperature (in K)
     r_c: corona radius (in gravitational radii)
@@ -62,10 +61,13 @@ def S_nu(nu_obs, z=0.01, M_BH=1.0, T=1e9, r_c=80, tau_T=1.0, eps_B=0.05,
     '''
 
     luminosity_distance = D_L if D_L is not None else Planck18.luminosity_distance(z)
-    d = luminosity_distance.value*1e6*pc
+    # if numeric D_L (Mpc), convert directly; else use .value from the astropy Quantity
+    if hasattr(luminosity_distance, 'value'):
+        d = luminosity_distance.value * 1e6 * pc
+    else:
+        d = float(luminosity_distance) * 1e6 * pc
     dil = 4 * pi * d**2
     nu = nu_obs * (1+z)
-
     # Make sure nu is always an array
     if np.isscalar(nu):
         nu = np.array([nu])
@@ -97,4 +99,3 @@ def calc_Pth_factor(r_c=80, T=1e9):
     theta_e = (k_B * T) / mec2   # Normalized temperature
     T_i = 9.1e10 * (20 / r_c)    # Ion temperature (Eq. 1 in Inoue+2024)
     return (1 + T_i / T) / a_fun(theta_e)
-

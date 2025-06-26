@@ -9,13 +9,13 @@ from astropy.cosmology import Planck18
 
 import matplotlib.pyplot as plt
 import matplotlib
-from plot_utils import nice_fonts
-from plot_utils import plot_components
+from smbh_corona.plot_utils import nice_fonts
+from smbh_corona.plot_utils import plot_components
 
-from constants import *
-from utils import Omega_beam, get_f_sys, L100_to_LX, L100_to_LX2, L230_to_LX, L230_to_LX2, F100_to_FX, F230_to_FX
-import corona_sed
-from diffuse_emission import RJ_dust, pl_emission, pl_emission_abs, pl_emission_cl_abs
+from smbh_corona.constants import *
+from smbh_corona.utils import Omega_beam, get_f_sys, L100_to_LX, L100_to_LX2, L230_to_LX, L230_to_LX2, F100_to_FX, F230_to_FX
+import smbh_corona.corona_sed
+from smbh_corona.diffuse_emission import RJ_dust, pl_emission, pl_emission_abs, pl_emission_cl_abs
 
 
 class Galaxy:
@@ -47,7 +47,7 @@ class Galaxy:
             self.data_type,
             self.data_frequencies_UL,
             self.data_fluxes_UL,
-            self.data_fluxes_UL_error, 
+            self.data_fluxes_UL_error,
             self.data_beams_UL,
             self.data_frequencies_LL,
             self.data_fluxes_LL,
@@ -233,39 +233,60 @@ class Galaxy:
                         log_M=None, r_c=None, tau_T=None, log_delta=None, kT=None, log_eps_B=None, p=None,
                         alpha_sy=None, sy_scale=None, ff_scale=None,
                         beta_RJ=None, tau1_freq=None, RJ_scale=None, nu_tau1_cl=None, f_cov=None, nu_tau1_diff=None):
-        ''' Calculate the SED for each individual component and the total emission. 
+        ''' Calculate the SED for each individual component and the total emission.
         It returns the total SED in mJy (used for fitting broadband data)'''
+
+        # honor the passed‐in values, if any
+        z = z if z is not None else self.z
+        magnification = magnification if magnification is not None else self.magnification
 
         # Set dynamic defaults
         log_M = log_M if log_M is not None else self.log_M
-        r_c = r_c if r_c is not None else self.r_c
+        r_c   = r_c   if r_c   is not None else self.r_c
         tau_T = tau_T if tau_T is not None else self.tau_T
         log_delta = log_delta if log_delta is not None else self.log_delta
-        kT = kT if kT is not None else (self.kT_par(
-            tau_T=tau_T) if self.use_kT_par else self.kT)
+        kT    = kT    if kT    is not None else (self.kT_par(
+                    tau_T=tau_T) if self.use_kT_par else self.kT)
         T = (kT / k_B) * keV  # Convert the temperature from kT[keV] to K
         log_eps_B = log_eps_B if log_eps_B is not None else (self.E_cond(
-            log_delta=log_delta, eta_mag=self.eta_mag, xi_ep=self.xi_ep) if self.use_E_cond else self.log_eps_B)
+                        log_delta=log_delta, eta_mag=self.eta_mag, xi_ep=self.xi_ep) if self.use_E_cond else self.log_eps_B)
         p = p if p is not None else self.p
-        alpha_sy = alpha_sy if alpha_sy is not None else self.alpha_sy
-        sy_scale = sy_scale if sy_scale is not None else self.sy_scale
-        ff_scale = ff_scale if ff_scale is not None else self.ff_scale
-        beta_RJ = beta_RJ if beta_RJ is not None else self.beta_RJ
-        tau1_freq = tau1_freq if tau1_freq is not None else self.tau1_freq
-        RJ_scale = RJ_scale if RJ_scale is not None else self.RJ_scale
+        alpha_sy   = alpha_sy   if alpha_sy   is not None else self.alpha_sy
+        sy_scale   = sy_scale   if sy_scale   is not None else self.sy_scale
+        ff_scale   = ff_scale   if ff_scale   is not None else self.ff_scale
+        beta_RJ    = beta_RJ    if beta_RJ    is not None else self.beta_RJ
+        tau1_freq  = tau1_freq  if tau1_freq  is not None else self.tau1_freq
+        RJ_scale   = RJ_scale   if RJ_scale   is not None else self.RJ_scale
         nu_tau1_cl = nu_tau1_cl if nu_tau1_cl is not None else self.nu_tau1_cl
-        f_cov = f_cov if f_cov is not None else self.f_cov
+        f_cov      = f_cov      if f_cov      is not None else self.f_cov
         nu_tau1_diff = nu_tau1_diff if nu_tau1_diff is not None else self.nu_tau1_diff
 
         # Calculate each SED component and then the total SED as the sum
-        self.S_cor = np.array(corona_sed.S_nu(nu, z=self.z, r_c=r_c, tau_T=tau_T, M_BH=(
-            10**log_M), delta=(10**log_delta), T=T, eps_B=(10**log_eps_B), p=p, D_L=self.D_L)) * self.magnification
-        self.S_dust = RJ_dust(nu, lg_scaling_rj=RJ_scale, nu_tau1_rest=tau1_freq,
-                              beta=beta_RJ, z=self.z) * self.magnification
-        self.S_ff = pl_emission_abs(nu, lg_scaling=ff_scale, alpha=-0.1, z=self.z, 
-                                        nu_tau1_cl=nu_tau1_cl, nu_tau1_diff=nu_tau1_diff) * self.magnification
-        self.S_sync = pl_emission_cl_abs(nu, lg_scaling=sy_scale, alpha=alpha_sy, z=self.z, 
-                                            nu_tau1_cl=nu_tau1_cl, f_cov=f_cov, nu_tau1_diff=nu_tau1_diff) * self.magnification
+        self.S_cor = np.array(
+            smbh_corona.corona_sed.S_nu(
+                nu, z=z, r_c=r_c, tau_T=tau_T,
+                M_BH=(10**log_M), delta=(10**log_delta),
+                T=T, eps_B=(10**log_eps_B), p=p,
+                D_L=self.D_L
+            )
+        ) * magnification
+
+        self.S_dust = RJ_dust(
+            nu, lg_scaling_rj=RJ_scale,
+            nu_tau1_rest=tau1_freq,
+            beta=beta_RJ, z=z
+        ) * magnification
+
+        self.S_ff = pl_emission_abs(
+            nu, lg_scaling=ff_scale, alpha=-0.1,
+            z=z, nu_tau1_cl=nu_tau1_cl, nu_tau1_diff=nu_tau1_diff
+        ) * magnification
+
+        self.S_sync = pl_emission_cl_abs(
+            nu, lg_scaling=sy_scale, alpha=alpha_sy,
+            z=z, nu_tau1_cl=nu_tau1_cl, f_cov=f_cov, nu_tau1_diff=nu_tau1_diff
+        ) * magnification
+
         self.S_tot = self.S_cor + self.S_dust + self.S_ff + self.S_sync
 
         return self.S_tot
@@ -296,7 +317,7 @@ class Galaxy:
         plt.errorbar(self.data_frequencies[mask_type_0], self.data_fluxes[mask_type_0],
                      yerr=self.data_fluxes_error[mask_type_0], label="Data", color='black', fmt='o')
 
-        # Plot ULs and LLs with arrows in the same color 
+        # Plot ULs and LLs with arrows in the same color
         plt.errorbar(self.data_frequencies_UL, self.data_fluxes_UL, yerr=0.15*self.data_fluxes_UL,
                      uplims=True, fmt='o', color='black', alpha=0.9, markersize=2, label='_nolegend_')
 
@@ -325,7 +346,7 @@ class Galaxy:
 
     def get_fit_parameters(self, fit_parameters_raw):
         ''' Get an input list of parameters to fit. Check that the parameters are actually in the model
-        parameters (if not remove them from the list and print a warning). Make a list containing the 
+        parameters (if not remove them from the list and print a warning). Make a list containing the
         fit_parameters in the correct order as given in the calculate_model function'''
         model_parameters = infer_parameters_from_function(self.calculate_model)
 
@@ -352,7 +373,7 @@ class Galaxy:
             r_c_min, r_c_max = 10.0, 900.0
         else:
             r_c_min = max(self.seed_parameters['r_c'] - delta_r_c, 5.0)
-            r_c_max = self.seed_parameters['r_c'] + delta_r_c 
+            r_c_max = self.seed_parameters['r_c'] + delta_r_c
 
         prior_bounds = {
             "z": (self.seed_parameters['z'] - delta_z, self.seed_parameters['z'] + delta_z),
@@ -387,10 +408,10 @@ class Galaxy:
         return np.array([log_M, tau_T, tau1_freq, sy_scale, ff_scale, RJ_scale])
 
     def filter_data_by_beam(self, Omega_beam_min=None, Omega_beam_max=None):
-        '''Method to remove data points for the fit, or treat points as ULs/LLs if they have 
+        '''Method to remove data points for the fit, or treat points as ULs/LLs if they have
         too low/high resolution.
-        Note: use as UL the (flux + flux_err) and as LL the (flux - flux_err) value in order 
-        to be conservative in case of loosely constrained fluxes, which gain too much weight 
+        Note: use as UL the (flux + flux_err) and as LL the (flux - flux_err) value in order
+        to be conservative in case of loosely constrained fluxes, which gain too much weight
         if they become strict upper/lower limits.'''
 
         # Check if the optional arguments are provided
@@ -402,12 +423,12 @@ class Galaxy:
             # Update lower limit lists
             self.data_frequencies_LL = np.concatenate(
                 [self.data_frequencies_LL, self.data_frequencies[indices_to_rm]])
-            self.data_fluxes_LL = np.concatenate([self.data_fluxes_LL, 
+            self.data_fluxes_LL = np.concatenate([self.data_fluxes_LL,
                                                   self.data_fluxes[indices_to_rm] - self.data_fluxes_error[indices_to_rm]])
             self.data_fluxes_LL_error = np.concatenate(
                 [self.data_fluxes_LL_error, self.data_fluxes_error[indices_to_rm]])
 
-           # Remove elements from the original lists
+            # Remove elements from the original lists
             self.data_frequencies = np.delete(self.data_frequencies, indices_to_rm)
             self.data_fluxes = np.delete(self.data_fluxes, indices_to_rm)
             self.data_fluxes_error = np.delete(self.data_fluxes_error, indices_to_rm)
@@ -444,7 +465,7 @@ class Galaxy:
         return kT
 
     def E_cond(self, log_delta, eta_mag=1.0, xi_ep=40.0):
-        '''Use the energy condition U_B = eta_mag * U_NT (eps_B = eta_mag * delta*(1+xi_ep) ) to derive eps_B from delta. 
+        '''Use the energy condition U_B = eta_mag * U_NT (eps_B = eta_mag * delta*(1+xi_ep) ) to derive eps_B from delta.
         Note: eta_mag = 0.75 corresponds to the minimum energy condition
                 xi_ep ~ 40 is the expected proton to electron ratio for shocks'''
         delta = np.power(10, log_delta)
@@ -453,27 +474,35 @@ class Galaxy:
         return log_eps_B
 
     def B_G(self):
-        '''Retrieve B[G]'''
-        T = (self.kT / k_B) * keV  # Convert the temperature from kT[keV] to K
-        return corona_sed.calc_B(M_BH=10**self.log_M, r_c=self.r_c, tau_T=self.tau_T, T=T, eps_B=(10**self.log_eps_B))
+        '''Retrieve B [G].'''
+        # if kT hasn’t been set (e.g. use_kT_par=False), fall back to the kT_par prescription
+        try:
+            kT_keV = self.kT
+        except AttributeError:
+            kT_keV = self.kT_par(tau_T=self.tau_T)
+        T = (kT_keV / k_B) * keV  # Convert kT [keV] → T [K]
+        return smbh_corona.corona_sed.calc_B(
+            M_BH=10**self.log_M, r_c=self.r_c, tau_T=self.tau_T, T=T,
+            eps_B=10**self.log_eps_B
+        )
 
     def sigma_mag(self):
         '''Retrieve the magnetization parameter ( sigma_mag = B^2/(4pi n m_e c^2) )'''
         B = self.B_G()
-        n_0 = corona_sed.calc_nth0(
+        n_0 = smbh_corona.corona_sed.calc_nth0(
             M_BH=10**self.log_M, r_c=self.r_c, tau_T=self.tau_T)
         return B**2 / (4. * pi * n_0 * mec2)
-    
+
     def beta_mag(self):
         '''Retrieve the plasma beta parameter ( beta_mag = P_th/P_B = (P_i + P_e)/P_B )'''
         T = (self.kT / k_B) * keV  # Convert the temperature from kT[keV] to K
-        factor = corona_sed.calc_Pth_factor(r_c=self.r_c, T=T)
+        factor = smbh_corona.corona_sed.calc_Pth_factor(r_c=self.r_c, T=T)
         eps_B = np.power(10, self.log_eps_B)
         return factor / eps_B
 
     def R_c_cm(self):
         '''Return R_c in cm'''
-        return self.r_c * 1.5e5 * np.power(10, self.log_M) 
+        return self.r_c * 1.5e5 * np.power(10, self.log_M)
 
     def E_cor(self):
         '''Retrieve the total energy in the corona in different components'''
@@ -501,11 +530,9 @@ class Galaxy:
             all_Sdust_samples.append(self.S_dust)
             all_Sff_samples.append(self.S_ff)
             all_Ssy_samples.append(self.S_sync)
-            # if plot_samples:
-            #    plot_components(ax, nu, [self.S_tot, self.S_cor, self.S_dust, self.S_ff, self.S_sync],
-            #                    show_legend=False, linestyle='--', label_prefix='mcmc', alpha=0.08)
-
-        return np.array(all_S_samples), np.array(all_Scor_samples), np.array(all_Sdust_samples), np.array(all_Sff_samples), np.array(all_Ssy_samples)
+        return np.array(all_S_samples), np.array(all_Scor_samples), \
+               np.array(all_Sdust_samples), np.array(all_Sff_samples), \
+               np.array(all_Ssy_samples)
 
     def calc_X(self, rel="R23", lum=True, verbose=True, corona_only=False, model_parameters=None):
         '''Calculate the intrinsic X-ray emission from the correlation between mm and X-ray emission.
@@ -526,7 +553,7 @@ class Galaxy:
         self.calculate_model(nu, *model_parameters)
 
         # Use the whole flux or only the one coming from the corona to estimate L_X
-        Fnu = self.S_cor[0] if corona_only else self.S_tot[0] 
+        Fnu = self.S_cor[0] if corona_only else self.S_tot[0]
         nuFnu = nu * Fnu * mJy               # nu*F_nu in erg/s/cm2
 
         # Convert flux to luminosity
@@ -534,35 +561,34 @@ class Galaxy:
             d = self.D_L.value * 1e6 * pc    # distance in cm
             dil = 4 * pi * d**2
             nuLnu = nuFnu * dil              # nu*L_nu in erg/s
-            if rel == "R23" and lum:         
-                X = L100_to_LX(nuLnu)      
+            if rel == "R23" and lum:
+                X = L100_to_LX(nuLnu)
                 X2 = L100_to_LX2(nuLnu)
-            else: 
+            else:
                 X = L230_to_LX(nuLnu)
                 X2 = L230_to_LX2(nuLnu)
-        else: 
-            if rel == "R23": 
-                X = F100_to_LX(nuFnu)
-            else: 
-                X = F230_to_LX(nuFnu)
+        else:
+            if rel == "R23":
+                X = F100_to_FX(nuFnu)
+            else:
+                X = F230_to_FX(nuFnu)
 
         if verbose:
             if lum:
                 if rel == "R23":
                     print(f"L_(100 GHz) = {nuLnu:.2e} erg/s")
-                else: 
+                else:
                     print(f"L_(230 GHz) = {nuLnu:.2e} erg/s")
-                print(f"L_(2-10 keV) = {X2:.2e} erg/s")
-                print(f"L_(14-150 keV) = {X:.2e} erg/s")
+                print(f"L_(2-10 keV) = {X2:.2e} ergs")
+                print(f"L_(14-150 keV) = {X:.2e} ergs")
             else:
-                print(f"F_(14-150 keV) = {X:.2e} erg/s/cm2")
+                print(f"F_(14-150 keV) = {X:.2e} ergs/cm2")
 
-        return X 
-
+        return X
 
     def calculate_L_cor(self, nu):
         T = (self.kT / k_B) * keV  # Convert the temperature from kT[keV] to K
-        self.L_cor = corona_sed.calculate_Lnu(
+        self.L_cor = smbh_corona.corona_sed.calculate_Lnu(
             nu=nu,
             M_BH=10**self.log_M,
             T=T,
@@ -584,14 +610,14 @@ class Galaxy:
         nu_peak_index = np.argmax(self.L_cor)
         nu_peak = nu[nu_peak_index]
         L_peak = self.L_cor[nu_peak_index]
-        self.L_peak_cor = nu_peak * L_peak    
+        self.L_peak_cor = nu_peak * L_peak
 
     def calculate_Edd_ratio(self, L_X):
         '''Calculate the Eddington ratio (L_X / L_Edd) given the X-ray luminosity L_X.
-        
+
         Parameters:
             L_X (float): The X-ray luminosity (in erg/s).
-        
+
         Returns:
             float: The Eddington ratio (L_X / L_Edd).
         '''
