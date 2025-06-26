@@ -62,6 +62,7 @@ def S_nu(nu_obs, z=0.01, M_BH=1.0, T=1e9, r_c=80, tau_T=1.0, eps_B=0.05,
 
     luminosity_distance = D_L if D_L is not None else Planck18.luminosity_distance(z)
     # if numeric D_L (Mpc), convert directly; else use .value from the astropy Quantity
+    # if numeric D_L (Mpc), convert directly; else use .value from the astropy Quantity
     if hasattr(luminosity_distance, 'value'):
         d = luminosity_distance.value * 1e6 * pc
     else:
