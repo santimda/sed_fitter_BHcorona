@@ -6,17 +6,17 @@ import numpy as np
 from bilby.core.likelihood import Likelihood
 from bilby.core.utils import infer_parameters_from_function
 
-from constants import *
+from smbh_corona.constants import *
 
 
 def Sobs_to_TB(S_nu, nu, Omega_b):
-    '''Converts the fluxes S_nu at the frequencies nu to brightness temperature T_B. 
+    '''Converts the fluxes S_nu at the frequencies nu to brightness temperature T_B.
     Omega_b are the solid angles of the beam at each frequency. Similar to Snu_to_TB
     but without knowledge of the true size of the source.
 
     Input:
-    [S_nu] = mJy 
-    [nu] = Hz 
+    [S_nu] = mJy
+    [nu] = Hz
     [Omega_b] = stereoradian
 
     Output:
@@ -32,7 +32,7 @@ def Omega_beam(theta1, theta2):
 
 
 def reduced_chi_square(observed, model, errors, num_params):
-    '''Function to calculate the reduced chi square. 
+    '''Function to calculate the reduced chi square.
     num_params: number of fitted parameters'''
     residuals = (observed - model) / errors
     chi_square = np.sum(residuals**2)
@@ -45,7 +45,7 @@ def reduced_chi_square(observed, model, errors, num_params):
 def get_f_sys(nu, theta1, theta2):
     """
     Calculate the systematic error in fluxes (f_sys)
-    We assume it is 5% for all observatories except for 
+    We assume it is 5% for all observatories except for
     ALMA in B6-8 (10%) and B9-10 (20%). ALMA is the only
     instrument with < 0.5" resolution in these frequency ranges
     (maybe NOEMA as well?).
@@ -74,12 +74,12 @@ def calculate_logX(logY, alpha, beta):
     """
     Function to calculate linear relations between quantities as defined in Table 2 in Kawamuro+22:
     logY = alpha * logX + beta
-    
+
     Parameters:
     logY (float): The logarithm of Y value.
     alpha (float): The alpha parameter.
     beta (float): The beta parameter.
-    
+
     Returns:
     float: The calculated logX value.
     """
@@ -88,108 +88,108 @@ def calculate_logX(logY, alpha, beta):
 
 def L230_to_LX2(L230):
     """
-    Calculate the X-ray luminosity in the 2-10 keV range using 
+    Calculate the X-ray luminosity in the 2-10 keV range using
     the linear relation from Kawamuro+22 (Table 2) for RQ AGNs.
-    
+
     Parameters:
     L230 (float): The value of nu*L_nu at nu=230 GHz (in erg/s)
-    
+
     Returns:
     float: The calculated LX value in erg/s
     """
-    alpha = 1.08  # \pm 0.06   
-    beta = -7.41 # +2.25 -2.71 
+    alpha = 1.08  # \pm 0.06
+    beta = -7.41 # +2.25 -2.71
     log_LX = calculate_logX( np.log10(L230), alpha, beta )
     return 10**log_LX
 
 def L230_to_LX(L230):
     """
-    Calculate the X-ray luminosity in the 14-150 keV range using 
+    Calculate the X-ray luminosity in the 14-150 keV range using
     the linear relation from Kawamuro+22 (Table 2) for the full sample of AGNs.
-    
+
     Parameters:
     L230 (float): The value of nu*L_nu at nu=230 GHz (in erg/s)
-    
+
     Returns:
     float: The calculated LX value in erg/s
     """
-    alpha = 1.19   
-    beta = -12.78 # \pm 0.05 
+    alpha = 1.19
+    beta = -12.78 # \pm 0.05
     log_LX = calculate_logX( np.log10(L230), alpha, beta )
     return 10**log_LX
 
 def F230_to_FX(F230):
     """
-    Calculate the X-ray flux in the 14-150 keV range using 
+    Calculate the X-ray flux in the 14-150 keV range using
     the linear relation from Kawamuro+22 (Table 2) for RQ AGNs.
-    
+
     Parameters:
     F230 (float): The value of nu*F_nu at nu=230 GHz (in erg/s/cm2)
-    
+
     Returns:
     float: The calculated FX value in erg/s/cm2
     """
-    alpha = 1.17  # +0.17 -0.13   
-    beta = -2.73 # +1.8 -1.3 
+    alpha = 1.17  # +0.17 -0.13
+    beta = -2.73 # +1.8 -1.3
     log_FX = calculate_logX( np.log10(F230), alpha, beta )
     return 10**log_FX
 
 def L100_to_LX2(L100):
     """
-    Calculate the X-ray luminosity in the 2-10 keV range using 
+    Calculate the X-ray luminosity in the 2-10 keV range using
     the linear relation from Ricci+23 (Eq. 3).
-    
+
     Parameters:
     L100 (float): The value of nu*L_nu at nu=100 GHz (in erg/s)
-    
+
     Returns:
     float: The calculated LX value in erg/s
     """
-    alpha = 1.22 # \pm 0.02  
-    beta = -13.9 # \pm 0.8 
+    alpha = 1.22 # \pm 0.02
+    beta = -13.9 # \pm 0.8
     log_LX = calculate_logX( np.log10(L100), alpha, beta )
     return 10**log_LX
 
 def L100_to_LX(L100):
     """
-    Calculate the X-ray luminosity in the 14-150 keV range using 
+    Calculate the X-ray luminosity in the 14-150 keV range using
     the linear relation from Ricci+23 (Eq. 1).
-    
+
     Parameters:
     L100 (float): The value of nu*L_nu at nu=100 GHz (in erg/s)
-    
+
     Returns:
     float: The calculated LX value in erg/s
     """
-    alpha = 1.22 # \pm 0.02  
-    beta = -14.4 # \pm 0.8 
+    alpha = 1.22 # \pm 0.02
+    beta = -14.4 # \pm 0.8
     log_LX = calculate_logX( np.log10(L100), alpha, beta )
     return 10**log_LX
 
 def F100_to_FX(F100):
     """
-    Calculate the X-ray flux in the 14-150 keV range using 
+    Calculate the X-ray flux in the 14-150 keV range using
     the linear relation from Ricci+23 (Eq. 2).
-    
+
     Parameters:
     F100 (float): The value of nu*F_nu at nu=100 GHz (in erg/s/cm2)
-    
+
     Returns:
     float: The calculated FX value in erg/s/cm2
     """
-    alpha = 1.37 # \pm 0.04  
+    alpha = 1.37 # \pm 0.04
     beta = -1.3  # \pm 0.4
     log_FX = calculate_logX( np.log10(F100), alpha, beta )
     return 10**log_FX
 
 def LX_to_Lbol(LX):
     """
-    Convert the X-ray luminosity to the bolometric luminosity using 
-    the conversion factor from Ricci+23 
+    Convert the X-ray luminosity to the bolometric luminosity using
+    the conversion factor from Ricci+23
 
     Parameters:
     LX (float): The value of L_(14-150 keV) in erg/s
-    
+
     Returns:
     float: L_bol in erg/s
     """
@@ -200,14 +200,14 @@ def LX_to_Lbol(LX):
 def format_with_errors(value, bounds, decimals=2):
     """
     Formats a value with errors in compact (a±b)exponent or (a+b-c)exponent form.
-    
+
     Args:
         value (float): Central value.
-        bounds (float or tuple): 
+        bounds (float or tuple):
             - If float: symmetric bounds (value ± bounds).
             - If tuple (lower_bound, upper_bound): asymmetric bounds.
         decimals (int): Decimal places (default: 2).
-    
+
     Returns:
         str: Formatted string like "(1.23±0.45)e42" or "(1.23+0.45-0.67)e42".
     """
@@ -274,7 +274,7 @@ class Analytical1DLikelihood_withUL_andLL(Likelihood):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(x={self.x}, y={self.y}, func={self.func.__name__}, x_ul={self.x_ul}, y_ul={self.y_ul}, x_ll={self.x_ll}, y_ll={self.y_ll})"
-        
+
     @property
     def func(self):
         """ Make func read-only """
@@ -382,7 +382,7 @@ class GaussianLikelihood_withUL_andLL(Analytical1DLikelihood_withUL_andLL):
 
         # Calculate log-likelihood for detected data points
         log_l = np.sum(- (self.residual / self.sigma)**2 / 2 - np.log(2 * np.pi * self.sigma**2) / 2)
-    
+
         return log_l
 
     def __repr__(self):
