@@ -12,8 +12,8 @@ If new sources are added, include a new file with the fluxes and initial paramet
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/supermassive-bh-corona.git
-cd supermassive-bh-corona
+git clone https://github.com/santimda/sed_fitter_BHcorona.git
+cd sed_fitter_BHcorona
 pip install -r requirements.txt
 
 # install the project as a package

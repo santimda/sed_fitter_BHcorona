@@ -236,7 +236,7 @@ class Galaxy:
         ''' Calculate the SED for each individual component and the total emission.
         It returns the total SED in mJy (used for fitting broadband data)'''
 
-        # honor the passed‐in values, if any
+        # honor the passed-in values, if any
         z = z if z is not None else self.z
         magnification = magnification if magnification is not None else self.magnification
 
