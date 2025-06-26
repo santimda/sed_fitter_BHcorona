@@ -18,3 +18,10 @@ pip install -r requirements.txt
 
 # install the project as a package
 pip install -e .
+```
+
+## Example
+
+```bash
+python example.py
+```

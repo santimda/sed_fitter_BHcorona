@@ -239,6 +239,7 @@ class Galaxy:
         # honor the passed-in values, if any
         z = z if z is not None else self.z
         D_L = Planck18.luminosity_distance(z).value  # Recalculate D_L based on the effective z
+        self.D_L = D_L  # Update self.D_L with the recalculated value
         magnification = magnification if magnification is not None else self.magnification
 
         # Set dynamic defaults
