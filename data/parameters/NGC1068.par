@@ -1,0 +1,20 @@
+{
+  "z": 0.0033,
+  "r_c": 70,
+  "log_delta": -1.0,
+  "kT": 70,
+  "log_eps_B": -1.8,
+  "p": 2.7,
+  "magnification": 1,
+  "alpha_sy": -1.5,
+  "log_M": 7.22,
+  "tau_T": 0.25,
+  "tau1_freq": 800,
+  "beta_RJ": 1.78,
+  "sy_scale": 0.3,
+  "ff_scale": 0.96,
+  "RJ_scale": -0.9,
+  "nu_tau1_cl": 21.0, 
+  "f_cov": 0.65,
+  "nu_tau1_diff": 3.9
+}
