@@ -22,6 +22,9 @@ pip install -e .
 
 ## Example
 
+1. Run the example python script.
 ```bash
-python example.py
+python ./scripts/example.py
 ```
+
+2. See a full example with the Python Notebook.
