@@ -1,4 +1,4 @@
-# galaxy.py
+import pathlib
 import os
 import json
 import numpy as np
@@ -19,8 +19,9 @@ from smbh_corona.diffuse_emission import RJ_dust, pl_emission, pl_emission_abs, 
 
 
 class Galaxy:
-    def __init__(self, galaxy_name, use_kT_par=True, use_E_cond=True, eta_mag=0.75, xi_ep=10.0):
+    def __init__(self, galaxy_name, data_path="../data", use_kT_par=True, use_E_cond=True, eta_mag=0.75, xi_ep=10.0):
         self.name = galaxy_name
+        self.data_path = str(pathlib.Path(data_path).resolve())
         self.use_kT_par = use_kT_par # Use Tc(tau) parametrization
         self.use_E_cond = use_E_cond # Use log_eps_B(log_delta) according to an energy condition
         self.eta_mag = eta_mag       # Value of U_mag/U_NT in the energy condition
@@ -33,8 +34,7 @@ class Galaxy:
             self.seed_parameters['log_eps_B'] = self.E_cond(log_delta=self.seed_parameters.get(
                 "log_delta"), eta_mag=self.eta_mag, xi_ep=self.xi_ep)
 
-        self.seed_parameters['D_L'] = Planck18.luminosity_distance(
-            self.seed_parameters.get("z"))
+        self.seed_parameters['D_L'] = Planck18.luminosity_distance(self.seed_parameters.get("z")).value
 
         # Initialize attributes based on the loaded parameters
         self.update_parameters(self.seed_parameters)
@@ -76,8 +76,9 @@ class Galaxy:
 
     def load_parameters(self):
         ''' Load parameters from the parameters file'''
-        parameter_file = f"./data/parameters/{self.name}.par"
+        parameter_file = f"{self.data_path}/parameters/{self.name}.par"
 
+        print(f"Looking for parameter file at: {parameter_file}")
         if not os.path.isfile(parameter_file):
             raise FileNotFoundError(
                 f"Parameter file {parameter_file} not found.")
@@ -90,7 +91,7 @@ class Galaxy:
     def load_flux_data(self):
         ''' Load observational data information from the fluxes file.
         The errors are added systematic error uncertainties (get_f_sys function)'''
-        flux_file = f"./data/fluxes/{self.name}_flux.dat"
+        flux_file = f"{self.data_path}/fluxes/{self.name}_flux.dat"
         if not os.path.isfile(flux_file):
             raise FileNotFoundError(f"Flux data file {flux_file} not found.")
 
@@ -538,9 +539,9 @@ class Galaxy:
 
         # Convert flux to luminosity
         if lum:
-            d = self.D_L.value * 1e6 * pc    # distance in cm
+            d = self.D_L * 1e6 * pc    # distance in cm
             dil = 4 * pi * d**2
-            nuLnu = nuFnu * dil              # nu*L_nu in erg/s
+            nuLnu = nuFnu * dil        # nu*L_nu in erg/s
             if rel == "R23" and lum:
                 X = L100_to_LX(nuLnu)
                 X2 = L100_to_LX2(nuLnu)
