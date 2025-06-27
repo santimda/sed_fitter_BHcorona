@@ -18,7 +18,7 @@ class DummyGalaxy(Galaxy):
             "z": 0.05,
             "log_M": 8.0,
             "r_c": 100.0,
-            "log_delta": 0.0,
+            "log_delta": -1.0,
             "tau_T": 0.5,
             "p": 2.5,
             "magnification": 1.0,
