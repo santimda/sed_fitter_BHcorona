@@ -60,7 +60,9 @@ def test_plot_components_confidence_intervals_runs_without_error(sigmas):
     """
     nu = np.linspace(1e9, 1e10, 50)
     # build dummy samples: 5 components, each with shape (n_samples, len(nu))
-    comps_samples = [np.random.normal(loc=i, scale=0.1, size=(20, len(nu))) for i in range(5)]
+    comps_samples = [
+        np.random.normal(loc=i, scale=0.1, size=(20, len(nu))) for i in range(5)
+    ]
 
     fig, ax = plt.subplots()
     ax.clear()
@@ -76,9 +78,24 @@ def test_plot_components_confidence_intervals_runs_without_error(sigmas):
 def test_set_latex_labels():
     labels = set_latex_labels()
     expected_keys = {
-        "z","magnification","log_M","r_c","tau_T","log_delta","kT","log_eps_B",
-        "p","alpha_sy","sy_scale","ff_scale","beta_RJ","tau1_freq","RJ_scale",
-        "nu_tau1_cl","f_cov","nu_tau1_diff"
+        "z",
+        "magnification",
+        "log_M",
+        "r_c",
+        "tau_T",
+        "log_delta",
+        "kT",
+        "log_eps_B",
+        "p",
+        "alpha_sy",
+        "sy_scale",
+        "ff_scale",
+        "beta_RJ",
+        "tau1_freq",
+        "RJ_scale",
+        "nu_tau1_cl",
+        "f_cov",
+        "nu_tau1_diff",
     }
     assert set(labels) == expected_keys
     for latex in labels.values():
@@ -97,7 +114,7 @@ def test_plot_bands():
     assert len(rects) == len(bands)
 
     # one axvline + one text per band
-    vlines = [line for line in ax.get_lines() if line.get_linestyle() == '--']
+    vlines = [line for line in ax.get_lines() if line.get_linestyle() == "--"]
     texts = ax.texts
     assert len(vlines) == len(bands)
     assert len(texts) == len(bands)

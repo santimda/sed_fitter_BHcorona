@@ -11,6 +11,7 @@ import numpy as np
 from smbh_corona.galaxy import Galaxy, Omega_beam
 from smbh_corona.constants import *
 
+
 def main():
     # ------------------------------------------------------------------------------
     # 1) Create the Galaxy object. It will
@@ -19,9 +20,13 @@ def main():
     #      • filter very-high-resolution or low resolution data (e.g, between 0.09"--1")
     # ------------------------------------------------------------------------------
     gal = Galaxy("NGC985")
-    Omega_beam_min, Omega_beam_max = Omega_beam(0.09*arcsec, 0.09*arcsec), Omega_beam(0.3*arcsec, 0.3*arcsec)
-    gal.filter_data_by_beam(Omega_beam_min=Omega_beam_min, Omega_beam_max=Omega_beam_max)
-    
+    Omega_beam_min, Omega_beam_max = Omega_beam(
+        0.09 * arcsec, 0.09 * arcsec
+    ), Omega_beam(0.3 * arcsec, 0.3 * arcsec)
+    gal.filter_data_by_beam(
+        Omega_beam_min=Omega_beam_min, Omega_beam_max=Omega_beam_max
+    )
+
     # ------------------------------------------------------------------------------
     # 2) Pick a grid of observing frequencies [Hz]
     # ------------------------------------------------------------------------------
@@ -42,11 +47,9 @@ def main():
     # 5) Optionally, save the model curve for later analysis
     # ------------------------------------------------------------------------------
     out = np.vstack([nu, sed_model]).T
-    np.savetxt("NGC985_model_sed.txt",
-               out,
-               header="nu_Hz    S_mJy",
-               fmt="%e  %e")
+    np.savetxt("NGC985_model_sed.txt", out, header="nu_Hz    S_mJy", fmt="%e  %e")
     print("Wrote model to NGC985_model_sed.txt")
+
 
 if __name__ == "__main__":
     main()

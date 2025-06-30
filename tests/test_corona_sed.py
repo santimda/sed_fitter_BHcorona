@@ -10,7 +10,7 @@ def test_shape_and_nonnegativity():
     freqs = np.logspace(9, 12, 50)
     flux = compute_corona_sed(freqs, tau_T=1.0, T=1e9)
     # allow list or ndarray
-    assert hasattr(flux, '__iter__')
+    assert hasattr(flux, "__iter__")
     arr = np.asarray(flux)
     assert arr.shape == freqs.shape
     assert np.all(arr >= 0)
@@ -18,8 +18,8 @@ def test_shape_and_nonnegativity():
 
 def test_flux_increases_with_r_c():
     """
-    Flux should increase r_c**2 at low frequencies, 
-    where the emission is optically thick. 
+    Flux should increase r_c**2 at low frequencies,
+    where the emission is optically thick.
     """
     freq = 1e9  # low frequency
     r_c_low, r_c_high = 20, 50
