@@ -14,7 +14,8 @@
   "sy_scale": -0.3,
   "ff_scale": -1.0,
   "RJ_scale": -1.3,
-  "nu_tau1_cl": 0.01, 
-  "f_cov": 0.000001,
+  "T_d": 100,
+  "nu_tau1_cl": 0.01,
+  "f_cov": 1e-06,
   "nu_tau1_diff": 0.01
 }

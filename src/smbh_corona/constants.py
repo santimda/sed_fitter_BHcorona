@@ -28,3 +28,4 @@ lightday = c * 86400      # lightday
 mJy = 1e-26               # mJy to cgs
 arcsec = 1/206265         # number of arcsec in a radian
 mas_to_rad = 1e-3/arcsec  # convert milliarcsec to radians
+T_subl = 1e3              # dust sublimation temperature (used to T_d_max)

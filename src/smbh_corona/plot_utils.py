@@ -1,6 +1,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+import matplotlib.transforms as mtransforms
 import numpy as np
 
 # My plot config
@@ -13,6 +14,7 @@ nice_fonts = {
     "axes.linewidth": 1.5,
     "axes.titlesize": 16,
     "legend.fontsize": 14,
+    # Ticks settings
     "xtick.labelsize": 16,
     "ytick.labelsize": 16,
     "xtick.major.size": 5.5,
@@ -23,6 +25,10 @@ nice_fonts = {
     "xtick.minor.width": 1.3,
     "ytick.major.width": 1.4,
     "ytick.minor.width": 1.3,
+    "xtick.direction": "in",
+    "ytick.direction": "in",
+    "xtick.top": True,
+    "ytick.right": True,
 }
 
 matplotlib.rcParams.update(nice_fonts)
@@ -129,6 +135,7 @@ def set_latex_labels():
         "sy_scale": r"$\log{A_\mathrm{sy}}$",
         "ff_scale": r"$\log{A_\mathrm{ff}}$",
         "beta_RJ": r"$\beta$",
+        "T_d": r"$T_\mathrm{d}$",
         "tau1_freq": r"$\nu_{\tau_1}\,[\mathrm{GHz}]$",
         "RJ_scale": r"$\log{A_\mathrm{d}}$",
         "nu_tau1_cl": r"$\nu_\mathrm{cl}\,[\mathrm{GHz}]$",
@@ -138,12 +145,14 @@ def set_latex_labels():
     return labels
 
 
-def plot_bands(ax, ymin, ymax, bands_to_plot, y_positions=None, colors=None):
+def plot_bands(ax, ymin, ymax, bands_to_plot, y_positions=None, x_offsets=None, colors=None):
     """Plot VLA and/or ALMA bands as rectangles"""
     bands_dict = {
-        "SKA-Low": {"start": 0.05, "width": 0.35},
-        "SKA-Mid": {"start": 0.35, "width": 15.4},
-        "SKA-Mid(5b)": {"start": 8.3, "width": 15.4},
+        'SKA-Low': {'start': 0.05, 'width': 0.3},
+        'SKA-Mid': {'start': 0.35, 'width': 15.05},
+        'SKA-Mid4': {'start': 2.8, 'width': 2.38},
+        'SKA-Mid(5a)': {'start': 4.6, 'width': 3.9},
+        'SKA-Mid(5b)': {'start': 8.3, 'width': 7.1},
         "L": {"start": 1, "width": 1},
         "S": {"start": 2, "width": 2},
         "C": {"start": 4, "width": 4},
@@ -152,9 +161,8 @@ def plot_bands(ax, ymin, ymax, bands_to_plot, y_positions=None, colors=None):
         "K": {"start": 18, "width": 8.5},
         "Ka": {"start": 26.5, "width": 13.5},
         "Q": {"start": 40, "width": 10},
-        "ALMA-B1": {"start": 35, "width": 15},
         "B1": {"start": 35, "width": 15},
-        "ALMA-B3": {"start": 84, "width": 32},
+        "B2": {"start": 67, "width": 49},
         "B3": {"start": 84, "width": 32},
         "B4": {"start": 125, "width": 38},
         "B5": {"start": 163, "width": 48},
@@ -171,6 +179,12 @@ def plot_bands(ax, ymin, ymax, bands_to_plot, y_positions=None, colors=None):
     else:
         y_positions = {band: y_positions[i] for i, band in enumerate(bands_to_plot)}
 
+    default_xoffset = -3  # points
+    if x_offsets is None:
+        x_offsets = {band: default_xoffset for band in bands_to_plot}
+    else:
+        x_offsets = {band: x_offsets[i] for i, band in enumerate(bands_to_plot)}
+        
     if colors is None:
         colors = {band: default_color for band in bands_to_plot}
     else:
@@ -204,13 +218,19 @@ def plot_bands(ax, ymin, ymax, bands_to_plot, y_positions=None, colors=None):
                 alpha=0.7,
                 linestyle="--",
             )
+
+            x_center = band['start'] + band['width'] / 2
+
+            # Create a transform that shifts text 6 points to the LEFT
+            text_transform = mtransforms.offset_copy(
+                ax.transData, fig=ax.figure,
+                x=x_offsets[band_name], y=0, units='points'
+            )
+
             ax.text(
-                band["start"] + band["width"] / 2 + 0.9,
-                band["pos"],
-                band_name,
-                color=band["color"],
-                ha="right",
-                va="center",
-                rotation="vertical",
-                fontsize=16,
+                x_center, band['pos'], band_name,
+                transform=text_transform,
+                color=band['color'],
+                ha='right', va='center',
+                rotation='vertical', fontsize=16
             )

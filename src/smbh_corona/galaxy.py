@@ -13,34 +13,67 @@ from smbh_corona.plot_utils import nice_fonts
 from smbh_corona.plot_utils import plot_components
 
 from smbh_corona.constants import *
-from smbh_corona.utils import Omega_beam, get_f_sys, L100_to_LX, L100_to_LX2, L230_to_LX, L230_to_LX2, F100_to_FX, F230_to_FX
+from smbh_corona.utils import Omega_beam, ang_to_lin, get_f_sys, L100_to_LX, L100_to_LX2, L230_to_LX, L230_to_LX2, F100_to_FX, F230_to_FX
 import smbh_corona.corona_sed
 from smbh_corona.diffuse_emission import RJ_dust, pl_emission, pl_emission_abs, pl_emission_cl_abs
 
 
 class Galaxy:
-    def __init__(self, galaxy_name, data_path="../data", use_kT_par=True, use_E_cond=True, eta_mag=0.75, xi_ep=10.0):
+    def __init__(self, 
+        galaxy_name, 
+        data_path="../data", 
+        use_kT_par=True, 
+        use_E_cond=True, 
+        eta_mag=0.75, 
+        xi_ep=10.0, 
+        min_ang_scale=1e-3, 
+        max_ang_scale=1.0,
+    ):
+
         self.name = galaxy_name
         self.data_path = str(pathlib.Path(data_path).resolve())
         self.use_kT_par = use_kT_par # Use Tc(tau) parametrization
         self.use_E_cond = use_E_cond # Use log_eps_B(log_delta) according to an energy condition
         self.eta_mag = eta_mag       # Value of U_mag/U_NT in the energy condition
         self.xi_ep = xi_ep           # Value of proton-to-electron ration in the energy condition
-        self.seed_parameters = self.load_parameters()
+        self.min_ang_scale = min_ang_scale # Minimum angular scale in arcsec for the SED points
+        self.max_ang_scale = max_ang_scale # Maximum angular scale in arcsec for the SED points
+
+        # Load and initialize the parameters 
+        self.seed_parameters = self._init_parameters()
+        
+        # Corresponding minimum and maximum beam sizes for the SEDs 
+        self.min_omega_beam = Omega_beam(min_ang_scale*arcsec, min_ang_scale*arcsec)
+        self.max_omega_beam = Omega_beam(max_ang_scale*arcsec, max_ang_scale*arcsec)
+
+        # Corresponding minimum and maximum linear scales for the SEDs
+        self.min_lin_scale = ang_to_lin(self.D_L.value, self.min_ang_scale)
+        self.max_lin_scale = ang_to_lin(self.D_L.value, self.max_ang_scale)
+
+        # Load the observational data from the flux file
+        self._load_data()
+
+    def _init_parameters(self):
+        '''Load parameters, apply conditions, and return final dictionary.'''
+        params = self.load_parameters()
+        params["D_L"] = Planck18.luminosity_distance(params.get("z"))
         if self.use_kT_par:
-            self.seed_parameters['kT'] = self.kT_par(
-                tau_T=self.seed_parameters.get("tau_T"))
+            params["kT"] = self.kT_par(tau_T=params.get("tau_T"))
         if self.use_E_cond:
-            self.seed_parameters['log_eps_B'] = self.E_cond(log_delta=self.seed_parameters.get(
-                "log_delta"), eta_mag=self.eta_mag, xi_ep=self.xi_ep)
+            params["log_eps_B"] = self.E_cond(
+                log_delta=params.get("log_delta"),
+                eta_mag=self.eta_mag,
+                xi_ep=self.xi_ep,
+            )
+       
+        # Update instance attributes
+        self.update_parameters(params)
+        return params
 
-        self.seed_parameters['D_L'] = Planck18.luminosity_distance(self.seed_parameters.get("z")).value
-
-        # Initialize attributes based on the loaded parameters
-        self.update_parameters(self.seed_parameters)
-
-        # Load the observational data
-        (self.data_frequencies,
+    def _load_data(self):
+        '''Load observational flux data into attributes.'''
+        (
+            self.data_frequencies,
             self.data_fluxes,
             self.data_fluxes_error,
             self.data_beams,
@@ -52,14 +85,15 @@ class Galaxy:
             self.data_frequencies_LL,
             self.data_fluxes_LL,
             self.data_fluxes_LL_error,
-            self.data_beams_LL
-         ) = self.load_flux_data()
+            self.data_beams_LL,
+        ) = self.load_flux_data()    
 
     def update_parameters(self, parameters):
         ''' Update the galaxy parameters'''
         parameter_names = ["z", "log_M", "r_c", "log_delta", "tau_T", "kT", "log_eps_B",
                            "p", "magnification", "alpha_sy", "beta_RJ", "tau1_freq",
-                           "sy_scale", "ff_scale", "RJ_scale", "D_L", "nu_tau1_cl", "f_cov", "nu_tau1_diff"]
+                           "sy_scale", "ff_scale", "RJ_scale", "T_d", "D_L", "nu_tau1_cl", 
+                           "f_cov", "nu_tau1_diff"]
 
         for param_name in parameter_names:
             # Check if the parameter is in parameters dictionary before updating
@@ -233,7 +267,8 @@ class Galaxy:
     def calculate_model(self, nu, z=None, magnification=None,
                         log_M=None, r_c=None, tau_T=None, log_delta=None, kT=None, log_eps_B=None, p=None,
                         alpha_sy=None, sy_scale=None, ff_scale=None,
-                        beta_RJ=None, tau1_freq=None, RJ_scale=None, nu_tau1_cl=None, f_cov=None, nu_tau1_diff=None):
+                        beta_RJ=None, tau1_freq=None, RJ_scale=None, T_d=None,
+                        nu_tau1_cl=None, f_cov=None, nu_tau1_diff=None):
         ''' Calculate the SED for each individual component and the total emission.
         It returns the total SED in mJy (used for fitting broadband data)'''
 
@@ -259,7 +294,10 @@ class Galaxy:
         ff_scale   = ff_scale   if ff_scale   is not None else self.ff_scale
         beta_RJ    = beta_RJ    if beta_RJ    is not None else self.beta_RJ
         tau1_freq  = tau1_freq  if tau1_freq  is not None else self.tau1_freq
+        T_d        = T_d        if T_d        is not None else self.T_d
         RJ_scale   = RJ_scale   if RJ_scale   is not None else self.RJ_scale
+        RJ_scale = min(RJ_scale, self.max_RJ_normalisation(T_d=T_d))
+
         nu_tau1_cl = nu_tau1_cl if nu_tau1_cl is not None else self.nu_tau1_cl
         f_cov      = f_cov      if f_cov      is not None else self.f_cov
         nu_tau1_diff = nu_tau1_diff if nu_tau1_diff is not None else self.nu_tau1_diff
@@ -268,7 +306,7 @@ class Galaxy:
         self.S_cor = np.array(smbh_corona.corona_sed.S_nu(nu, z=self.z, r_c=r_c, tau_T=tau_T, M_BH=(
             10**log_M), delta=(10**log_delta), T=T, eps_B=(10**log_eps_B), p=p, D_L=self.D_L)) * self.magnification
         self.S_dust = RJ_dust(nu, lg_scaling_rj=RJ_scale, nu_tau1_rest=tau1_freq,
-                              beta=beta_RJ, z=self.z) * self.magnification
+                              beta=beta_RJ, T_d=T_d, z=self.z) * self.magnification
         self.S_ff = pl_emission_abs(nu, lg_scaling=ff_scale, alpha=-0.1, z=self.z,
                                         nu_tau1_cl=nu_tau1_cl, nu_tau1_diff=nu_tau1_diff) * self.magnification
         self.S_sync = pl_emission_cl_abs(nu, lg_scaling=sy_scale, alpha=alpha_sy, z=self.z,
@@ -349,11 +387,38 @@ class Galaxy:
 
         return fit_parameters
 
+    def max_RJ_normalisation(self, T_d=None, nu_0=100e9):
+        """
+        Compute the maximum possible RJ normalisation (optically-thick source filling
+        self.max_omega_beam) for a given dust temperature T_d.
+        Returns the value of max_lg_scaling_rj
+
+        Parameters
+        ----------
+        T_d : float
+            Dust temperature in K (can differ from self.T_d).
+        nu_0 : float
+            Reference observed-frame frequency in Hz (default 100 GHz)
+            Important: it has to match the one used in diffuse_emission.py!
+        """
+        # Use as default the self.T_d value
+        T_d = T_d if T_d is not None else self.T_d
+
+        # rest-frame frequency
+        nu_rest = nu_0 * (1.0 + self.z)
+
+        # Rayleigh-Jeans B_nu 
+        B_nu_RJ = 2.0 * k_B * T_d * (nu_rest ** 2) / (c ** 2)
+
+        # Observed flux density for optically-thick source filling the solid angle
+        S_nu_mJy = (1.0 + self.z) * B_nu_RJ * self.max_omega_beam / mJy
+        return np.log10(S_nu_mJy)  
+
     def set_prior_bounds(self, delta_z=0.5, delta_magnification=0.5,
                          delta_log_M=1.0, delta_r_c=None, delta_tau_T=3.0,
                          delta_log_delta=2.0, delta_kT=1.0, delta_log_eps_B=2.0, delta_p=1.0,
                          delta_alpha_sy=0.8, delta_sy_scale=1.5, delta_ff_scale=1.5,
-                         delta_beta_RJ=0.3, delta_tau1_freq=3e2, delta_RJ_scale=1.5):
+                         delta_beta_RJ=0.3, delta_tau1_freq=3e2, delta_RJ_scale=1.5, T_d_max=T_subl):
         ''' Set boundaries for the priors. The parameters "delta" give the explored range for each model parameter'''
 
         if delta_r_c is None:
@@ -361,6 +426,8 @@ class Galaxy:
         else:
             r_c_min = max(self.seed_parameters['r_c'] - delta_r_c, 5.0)
             r_c_max = self.seed_parameters['r_c'] + delta_r_c
+
+        max_RJ_scale = min(self.max_RJ_normalisation(T_d=T_d_max), self.seed_parameters['RJ_scale'] + delta_RJ_scale)
 
         prior_bounds = {
             "z": (self.seed_parameters['z'] - delta_z, self.seed_parameters['z'] + delta_z),
@@ -377,7 +444,8 @@ class Galaxy:
             "ff_scale": (self.seed_parameters['ff_scale'] - delta_ff_scale, self.seed_parameters['ff_scale'] + delta_ff_scale),
             "beta_RJ": (1, 2),
             "tau1_freq": (100.0, 1200.0),
-            "RJ_scale": (self.seed_parameters['RJ_scale'] - delta_RJ_scale, self.seed_parameters['RJ_scale'] + delta_RJ_scale),
+            "RJ_scale": (self.seed_parameters['RJ_scale'] - delta_RJ_scale, max_RJ_scale),
+            "T_d": (10, T_d_max),
             "nu_tau1_cl": (0, 30),
             "f_cov": (0, 1),
             "nu_tau1_diff": (0, 5),
@@ -402,45 +470,42 @@ class Galaxy:
         if they become strict upper/lower limits.'''
 
         # Check if the optional arguments are provided
-        if Omega_beam_min is not None:
-            # Filter data for elements where data_beam < Omega_beam_min
-            indices_to_rm = [i for i, beam in enumerate(
-                self.data_beams) if beam < Omega_beam_min]
+        Omega_beam_min = Omega_beam_min if Omega_beam_min is not None else self.min_omega_beam  
+        Omega_beam_max = Omega_beam_max if Omega_beam_max is not None else self.max_omega_beam 
 
-            # Update lower limit lists
-            self.data_frequencies_LL = np.concatenate(
-                [self.data_frequencies_LL, self.data_frequencies[indices_to_rm]])
-            self.data_fluxes_LL = np.concatenate([self.data_fluxes_LL,
-                                                  self.data_fluxes[indices_to_rm] - self.data_fluxes_error[indices_to_rm]])
-            self.data_fluxes_LL_error = np.concatenate(
-                [self.data_fluxes_LL_error, self.data_fluxes_error[indices_to_rm]])
+        # Filter data for elements where data_beam < Omega_beam_min
+        indices_to_rm = [i for i, beam in enumerate(
+            self.data_beams) if beam < Omega_beam_min]
+        # Update lower limit lists
+        self.data_frequencies_LL = np.concatenate(
+            [self.data_frequencies_LL, self.data_frequencies[indices_to_rm]])
+        self.data_fluxes_LL = np.concatenate([self.data_fluxes_LL, 
+                                              self.data_fluxes[indices_to_rm] - self.data_fluxes_error[indices_to_rm]])
+        self.data_fluxes_LL_error = np.concatenate(
+            [self.data_fluxes_LL_error, self.data_fluxes_error[indices_to_rm]])
+        # Remove elements from the original lists
+        self.data_frequencies = np.delete(self.data_frequencies, indices_to_rm)
+        self.data_fluxes = np.delete(self.data_fluxes, indices_to_rm)
+        self.data_fluxes_error = np.delete(self.data_fluxes_error, indices_to_rm)
+        self.data_type = np.delete(self.data_type, indices_to_rm)
+        self.data_beams = np.delete(self.data_beams, indices_to_rm)
 
-            # Remove elements from the original lists
-            self.data_frequencies = np.delete(self.data_frequencies, indices_to_rm)
-            self.data_fluxes = np.delete(self.data_fluxes, indices_to_rm)
-            self.data_fluxes_error = np.delete(self.data_fluxes_error, indices_to_rm)
-            self.data_type = np.delete(self.data_type, indices_to_rm)
-            self.data_beams = np.delete(self.data_beams, indices_to_rm)
-
-        if Omega_beam_max is not None:
-            # Filter data for elements where data_beam > Omega_beam_max
-            indices_to_rm = [i for i, beam in enumerate(
-                self.data_beams) if beam > Omega_beam_max]
-
-            # Update upper limit lists
-            self.data_frequencies_UL = np.concatenate(
-                [self.data_frequencies_UL, self.data_frequencies[indices_to_rm]])
-            self.data_fluxes_UL = np.concatenate([self.data_fluxes_UL,
-                                                  self.data_fluxes[indices_to_rm] + self.data_fluxes_error[indices_to_rm]])
-            self.data_fluxes_UL_error = np.concatenate(
-                [self.data_fluxes_UL_error, self.data_fluxes_error[indices_to_rm]])
-
-            # Remove elements from the original lists
-            self.data_frequencies = np.delete(self.data_frequencies, indices_to_rm)
-            self.data_fluxes = np.delete(self.data_fluxes, indices_to_rm)
-            self.data_fluxes_error = np.delete(self.data_fluxes_error, indices_to_rm)
-            self.data_type = np.delete(self.data_type, indices_to_rm)
-            self.data_beams = np.delete(self.data_beams, indices_to_rm)
+        # Filter data for elements where data_beam > Omega_beam_max
+        indices_to_rm = [i for i, beam in enumerate(
+            self.data_beams) if beam > Omega_beam_max]
+        # Update upper limit lists
+        self.data_frequencies_UL = np.concatenate(
+            [self.data_frequencies_UL, self.data_frequencies[indices_to_rm]])
+        self.data_fluxes_UL = np.concatenate([self.data_fluxes_UL,
+                                              self.data_fluxes[indices_to_rm] + self.data_fluxes_error[indices_to_rm]])
+        self.data_fluxes_UL_error = np.concatenate(
+            [self.data_fluxes_UL_error, self.data_fluxes_error[indices_to_rm]])
+        # Remove elements from the original lists
+        self.data_frequencies = np.delete(self.data_frequencies, indices_to_rm)
+        self.data_fluxes = np.delete(self.data_fluxes, indices_to_rm)
+        self.data_fluxes_error = np.delete(self.data_fluxes_error, indices_to_rm)
+        self.data_type = np.delete(self.data_type, indices_to_rm)
+        self.data_beams = np.delete(self.data_beams, indices_to_rm)
 
     def kT_par(self, tau_T):
         '''Use the value of Tc from the observed correlation between tau_T and T_c for a spherical geometry

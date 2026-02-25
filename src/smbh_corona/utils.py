@@ -31,6 +31,25 @@ def Omega_beam(theta1, theta2):
     return pi * theta1 * theta2 / (4 * np.log(2))
 
 
+def ang_to_lin(D_L, ang_scale):
+    """
+    Convert an angular scale to a linear size.
+
+    Parameters
+    ----------
+    D_L : float
+        Luminosity distance in Mpc.
+    ang_scale : float
+        Angular size in arcseconds.
+
+    Returns
+    -------
+    linear_size : float
+        Linear size in parsecs.
+    """
+    return ang_scale * arcsec * D_L * 1e6
+
+
 def reduced_chi_square(observed, model, errors, num_params):
     '''Function to calculate the reduced chi square.
     num_params: number of fitted parameters'''
@@ -235,6 +254,73 @@ def format_with_errors(value, bounds, decimals=2):
         return f"({scaled_val:.{decimals}f}+{scaled_high:.{decimals}f}-{scaled_low:.{decimals}f})e{exponent}"
 
 #=================================================================================================
+
+def generate_initial_positions(
+    prior,
+    fit_parameters,
+    prior_bounds,
+    seed_parameters,
+    nwalkers,
+    use_broad_sampling=False,
+    perturb_fraction=0.1,
+):
+    """
+    Generate initial walker positions for bilby's emcee sampler.
+
+    Parameters
+    ----------
+    prior : bilby.core.prior.PriorDict
+        Priors including Uniform and DeltaFunction.
+    fit_parameters : list of str
+        Names of parameters being sampled.
+    prior_bounds : dict
+        {param: (lower, upper)} bounds for free parameters.
+    seed_parameters : dict
+        Seed/initial guess parameters (e.g. source.seed_parameters).
+    nwalkers : int
+        Number of walkers.
+    use_broad_sampling : bool
+        If True, draw initial walkers from the prior.
+        If False, draw walkers from a Gaussian ball around seed parameters.
+    perturb_fraction : float
+        Fraction of parameter range used to perturb seed parameters
+        (ignored when using broad sampling).
+
+    Returns
+    -------
+    initial_pos : np.ndarray
+        Array of shape (nwalkers, ndim) suitable for emcee.
+    """
+
+    ndim = len(fit_parameters)
+
+    if use_broad_sampling:
+        # Use prior.sample (returns dict of arrays, one per parameter)
+        samples = prior.sample(size=nwalkers)
+        # Convert to (nwalkers, ndim) array in the order of fit_parameters
+        return np.column_stack([samples[p] for p in fit_parameters])
+
+    # Otherwise: perturb around seed parameters
+    initial_pos = []
+    for _ in range(nwalkers):
+        pos = []
+        for p in fit_parameters:
+            seed = seed_parameters[p]
+            lower, upper = prior_bounds[p]
+            half_range = 0.5 * (upper - lower)
+
+            # Gaussian perturbation centred on the seed
+            proposed_value = seed + perturb_fraction * half_range * np.random.randn()
+
+            # Keep inside bounds, otherwise use seed
+            if lower <= proposed_value <= upper:
+                pos.append(proposed_value)
+            else:
+                pos.append(seed)
+
+        initial_pos.append(pos)
+
+    return np.array(initial_pos)
 
 
 class Analytical1DLikelihood_withUL_andLL(Likelihood):
