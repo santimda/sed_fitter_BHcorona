@@ -648,7 +648,8 @@ class Galaxy:
     def calculate_L_bol_cor(self, nu=np.geomspace(1e9, 1e13, 200)):
         '''Calculate the bolometric luminosity of the corona (in erg/s)'''
         self.calculate_L_cor(nu)
-        self.L_bol_cor = np.trapz(self.L_cor, nu)
+        # Integrate using trapezoid compatible in all np versions (np.trapz or np.trapezoid)
+        self.L_bol_cor = getattr(np, "trapezoid", np.trapz)(self.L_cor, nu)
 
     def calculate_L_peak_cor(self, nu=np.geomspace(1e9, 1e13, 200)):
         '''Calculate the peak luminosity of the corona, nu_p * L_p (in erg/s)'''

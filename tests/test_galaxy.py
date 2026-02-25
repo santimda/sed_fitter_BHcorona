@@ -111,7 +111,7 @@ def test_calculate_L_cor_and_integrals(g):
 
     # bolometric luminosity via trapezoid
     g.calculate_L_bol_cor(nu)
-    expected = np.trapz(g.L_cor, nu)
+    expected = np.trapezoid(g.L_cor, nu)
     assert np.isclose(g.L_bol_cor, expected)
 
     # peak luminosity
