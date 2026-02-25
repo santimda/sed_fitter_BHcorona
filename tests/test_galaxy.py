@@ -34,6 +34,7 @@ class DummyGalaxy(Galaxy):
             # we'll set kT & log_eps_B directly
             "kT": 50.0,
             "log_eps_B": -1.0,
+            "T_d": 100,
         }
         self.update_parameters(self.seed_parameters)
         # dummy distance
