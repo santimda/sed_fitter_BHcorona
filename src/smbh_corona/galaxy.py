@@ -1,4 +1,3 @@
-import pathlib
 import os
 import json
 import numpy as np
@@ -13,6 +12,7 @@ from smbh_corona.plot_utils import nice_fonts
 from smbh_corona.plot_utils import plot_components
 
 from smbh_corona.constants import *
+from smbh_corona.config import FLUX_PATH, PARAMETERS_PATH
 from smbh_corona.utils import Omega_beam, ang_to_lin, get_f_sys, L100_to_LX, L100_to_LX2, L230_to_LX, L230_to_LX2, F100_to_FX, F230_to_FX
 import smbh_corona.corona_sed
 from smbh_corona.diffuse_emission import RJ_dust, pl_emission, pl_emission_abs, pl_emission_cl_abs
@@ -20,8 +20,7 @@ from smbh_corona.diffuse_emission import RJ_dust, pl_emission, pl_emission_abs, 
 
 class Galaxy:
     def __init__(self, 
-        galaxy_name, 
-        data_path="../data", 
+        galaxy_name,
         use_kT_par=True, 
         use_E_cond=True, 
         eta_mag=0.75, 
@@ -31,7 +30,6 @@ class Galaxy:
     ):
 
         self.name = galaxy_name
-        self.data_path = str(pathlib.Path(data_path).resolve())
         self.use_kT_par = use_kT_par # Use Tc(tau) parametrization
         self.use_E_cond = use_E_cond # Use log_eps_B(log_delta) according to an energy condition
         self.eta_mag = eta_mag       # Value of U_mag/U_NT in the energy condition
@@ -110,7 +108,7 @@ class Galaxy:
 
     def load_parameters(self):
         ''' Load parameters from the parameters file'''
-        parameter_file = f"{self.data_path}/parameters/{self.name}.par"
+        parameter_file = PARAMETERS_PATH / f"{self.name}.par"
 
         print(f"Looking for parameter file at: {parameter_file}")
         if not os.path.isfile(parameter_file):
@@ -125,7 +123,7 @@ class Galaxy:
     def load_flux_data(self):
         ''' Load observational data information from the fluxes file.
         The errors are added systematic error uncertainties (get_f_sys function)'''
-        flux_file = f"{self.data_path}/fluxes/{self.name}_flux.dat"
+        flux_file = FLUX_PATH / f"{self.name}_flux.dat"
         if not os.path.isfile(flux_file):
             raise FileNotFoundError(f"Flux data file {flux_file} not found.")
 
@@ -649,7 +647,11 @@ class Galaxy:
         '''Calculate the bolometric luminosity of the corona (in erg/s)'''
         self.calculate_L_cor(nu)
         # Integrate using trapezoid compatible in all np versions (np.trapz or np.trapezoid)
-        self.L_bol_cor = getattr(np, "trapezoid", np.trapz)(self.L_cor, nu)
+        if hasattr(np, "trapezoid"):
+            trapezoid = np.trapezoid
+        else:
+            trapezoid = np.trapz
+        self.L_bol_cor = trapezoid(self.L_cor, nu)
 
     def calculate_L_peak_cor(self, nu=np.geomspace(1e9, 1e13, 200)):
         '''Calculate the peak luminosity of the corona, nu_p * L_p (in erg/s)'''

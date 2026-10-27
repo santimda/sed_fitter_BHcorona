@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 
 from smbh_corona.galaxy import Galaxy
+from smbh_corona.constants import arcsec
+from smbh_corona.utils import Omega_beam
 
 
 # A dummy subclass that skips any file I/O by overriding load_parameters & load_flux_data
@@ -41,6 +43,7 @@ class DummyGalaxy(Galaxy):
         from astropy.cosmology import Planck18
 
         self.D_L = Planck18.luminosity_distance(self.z)
+        self.max_omega_beam = Omega_beam(arcsec, arcsec)
 
     def load_parameters(self):
         raise RuntimeError("should not be called")
@@ -174,6 +177,7 @@ def test_set_prior_bounds_structure(g):
         "kT",
         "log_eps_B",
         "p",
+        "T_d",
         "alpha_sy",
         "sy_scale",
         "ff_scale",

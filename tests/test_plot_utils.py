@@ -87,6 +87,7 @@ def test_set_latex_labels():
         "kT",
         "log_eps_B",
         "p",
+        "T_d",
         "alpha_sy",
         "sy_scale",
         "ff_scale",
