@@ -19,8 +19,12 @@ plots. Generated figures and sampler outputs are not required for installation.
 
 If new sources are added, include a flux file and an initial-parameter file in
 the corresponding folders within `data/`, following the existing conventions.
-The data paths are defined in `src/smbh_corona/config.py`; edit that file if the
-data are stored elsewhere.
+The repository uses `data/` by default. To keep data outside the source checkout,
+set `SMBH_CORONA_DATA_PATH` to a directory containing `parameters/` and `fluxes/`:
+
+```bash
+export SMBH_CORONA_DATA_PATH=/path/to/smbh-corona-data
+```
 
 Flux files use six columns:
 
@@ -38,6 +42,12 @@ git clone https://github.com/santimda/sed_fitter_BHcorona.git
 cd sed_fitter_BHcorona
 pip install -r requirements.txt
 pip install -e .
+```
+
+For tests and notebooks, install the additional development dependencies:
+
+```bash
+pip install -r requirements-dev.txt
 ```
 
 The project can also be checked in the provided mamba environment:
