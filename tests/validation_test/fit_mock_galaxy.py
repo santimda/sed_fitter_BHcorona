@@ -5,6 +5,7 @@ import argparse
 import json
 import logging
 from pathlib import Path
+import shutil
 import warnings
 
 import matplotlib
@@ -45,6 +46,13 @@ def configure_quiet_output():
     logging.getLogger("bilby").setLevel(logging.ERROR)
     warnings.filterwarnings("ignore", category=FutureWarning, module=r"bilby\..*")
     warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"(bilby|emcee)\..*")
+
+
+def validation_plot_style():
+    style = dict(nice_fonts)
+    style["text.usetex"] = shutil.which("latex") is not None
+    return style
+
 
 MOCK_FREQUENCIES_GHZ = np.array([
     0.8, 1.25, 1.75, 2.5, 3.5, 4.5, 7.5, 8.5, 11.5, 13.5, 17.0, 19.5,
@@ -221,7 +229,7 @@ def fit_mock_galaxy(args):
     )
     samples_components = [samples[index] for index in range(5)]
 
-    matplotlib.rcParams.update(nice_fonts)
+    matplotlib.rcParams.update(validation_plot_style())
     fig, ax = plt.subplots(figsize=(8, 6))
     ax.errorbar(
         galaxy.data_frequencies,
