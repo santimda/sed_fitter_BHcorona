@@ -301,14 +301,14 @@ class Galaxy:
         nu_tau1_diff = nu_tau1_diff if nu_tau1_diff is not None else self.nu_tau1_diff
 
         # Calculate each SED component and then the total SED as the sum
-        self.S_cor = np.array(smbh_corona.corona_sed.S_nu(nu, z=self.z, r_c=r_c, tau_T=tau_T, M_BH=(
-            10**log_M), delta=(10**log_delta), T=T, eps_B=(10**log_eps_B), p=p, D_L=self.D_L)) * self.magnification
+        self.S_cor = np.array(smbh_corona.corona_sed.S_nu(nu, z=z, r_c=r_c, tau_T=tau_T, M_BH=(
+            10**log_M), delta=(10**log_delta), T=T, eps_B=(10**log_eps_B), p=p, D_L=D_L)) * magnification
         self.S_dust = RJ_dust(nu, lg_scaling_rj=RJ_scale, nu_tau1_rest=tau1_freq,
-                              beta=beta_RJ, T_d=T_d, z=self.z) * self.magnification
-        self.S_ff = pl_emission_abs(nu, lg_scaling=ff_scale, alpha=-0.1, z=self.z,
-                                        nu_tau1_cl=nu_tau1_cl, nu_tau1_diff=nu_tau1_diff) * self.magnification
-        self.S_sync = pl_emission_cl_abs(nu, lg_scaling=sy_scale, alpha=alpha_sy, z=self.z,
-                                            nu_tau1_cl=nu_tau1_cl, f_cov=f_cov, nu_tau1_diff=nu_tau1_diff) * self.magnification
+                              beta=beta_RJ, T_d=T_d, z=z) * magnification
+        self.S_ff = pl_emission_abs(nu, lg_scaling=ff_scale, alpha=-0.1, z=z,
+                                        nu_tau1_cl=nu_tau1_cl, nu_tau1_diff=nu_tau1_diff) * magnification
+        self.S_sync = pl_emission_cl_abs(nu, lg_scaling=sy_scale, alpha=alpha_sy, z=z,
+                                            nu_tau1_cl=nu_tau1_cl, f_cov=f_cov, nu_tau1_diff=nu_tau1_diff) * magnification
 
         self.S_tot = self.S_cor + self.S_dust + self.S_ff + self.S_sync
 
