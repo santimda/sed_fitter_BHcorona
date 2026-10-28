@@ -169,6 +169,8 @@ def plot_bands(ax, ymin, ymax, bands_to_plot, y_positions=None, x_offsets=None, 
         "B6": {"start": 211, "width": 64},
         "B7": {"start": 275, "width": 98},
         "B8": {"start": 385, "width": 115},
+        "B9": {"start": 602, "width": 118},
+        "B10": {"start": 787, "width": 163},
     }
 
     default_color = "grey"
