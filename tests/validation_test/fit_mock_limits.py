@@ -304,7 +304,7 @@ def fit_mock_limits(args):
 
 
 def run_validations(args):
-    weights = (1.0, 100.0) if args.w is None else (args.w,)
+    weights = (1.0, 10.0) if args.w is None else (args.w,)
     try:
         summaries = []
         for weight in weights:
