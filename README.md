@@ -1,5 +1,10 @@
 # sed_fitter_BHcorona
 
+This package provides a framework to derive physical information of supermassive black hole (SMBH) coronae by modelling their spectral energy distribution (SED) from radio to far-infrared frequencies. We introduce a corona emission model based on a one-zone spherical region with a hybrid thermal and non-thermal plasma based on [Inoue et al. (2019)](https://ui.adsabs.harvard.edu/#abs/2019ApJ...880...40I/abstract). We use a slightly modified version of the numerical code from
+[Margalit & Quataert (2021, 2024)](https://github.com/bmargalit/thermal-synchrotron) to compute the synchrotron SED of a hybrid plasma.
+In addition to the physical coronal model, we include phenomenological continuum-emission components. To fit the SEDs in a flexible and robust way, we use the package Bilby [Ashton et al. 2019](https://ui.adsabs.harvard.edu/abs/2019ApJS..241...27A/abstract). Further details of the model are provided in [del Palacio et al. (2025)](https://ui.adsabs.harvard.edu/abs/2025A%26A...701A..41D/abstract).
+
+
 ## Project
 
 This repository contains the code and data used for the paper *Millimeter
