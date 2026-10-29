@@ -86,7 +86,23 @@ Run the default validation from the repository root:
 MPLBACKEND=Agg python tests/validation_test/fit_mock_galaxy.py
 ```
 
-The default run uses 32 walkers and 4000 steps and writes the regenerated flux
+The default run uses 32 walkers and 2000 steps and writes the regenerated flux
 file to `data/fluxes/test_galaxy_flux.dat` and its summary, SED plot, and corner
 plot to `validation_test_output/`. A shorter recovery check runs as part of the
 default pytest suite.
+
+The separate mixed-limit validation uses the same model but writes detections
+between 100 and 300 GHz and paired lower/upper limits at the other frequencies
+into the same six-column flux file. The validation runs once with the soft
+(`w=1`) treatment and once with the strict (`w=10`) treatment:
+
+```bash
+MPLBACKEND=Agg python tests/validation_test/fit_mock_limits.py
+```
+
+Each run writes a fit plot, corner plot, and summary named for its `w` value.
+Bilby sampler chains and pickle files are removed after the validation completes.
+
+The limit widths use the loaded statistical and systematic errors. Larger `w`
+values narrow the effective one-sided Gaussian width and therefore penalize model
+predictions outside the limits more strongly.

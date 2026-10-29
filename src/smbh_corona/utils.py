@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import numpy as np
+from scipy.stats import norm
 
 from bilby.core.likelihood import Likelihood
 from bilby.core.utils import infer_parameters_from_function
@@ -426,7 +427,20 @@ class Analytical1DLikelihood_withUL_andLL(Likelihood):
 
 
 class GaussianLikelihood_withUL_andLL(Analytical1DLikelihood_withUL_andLL):
-    def __init__(self, x, y, func, sigma=None, x_ul=None, y_ul=None, x_ll=None, y_ll=None):
+    def __init__(
+        self,
+        x,
+        y,
+        func,
+        sigma=None,
+        x_ul=None,
+        y_ul=None,
+        x_ll=None,
+        y_ll=None,
+        sigma_ul=None,
+        sigma_ll=None,
+        w=1.0,
+    ):
         """
         A general Gaussian likelihood for known or unknown noise - the model
         parameters are inferred from the arguments of the function.
@@ -447,27 +461,39 @@ class GaussianLikelihood_withUL_andLL(Analytical1DLikelihood_withUL_andLL):
             This can either be a single float, or an array with length equal
             to that for `x` and `y`.
         x_ul, y_ul: array_like, optional
-            The upper limit data. If provided, the exceed_ul method will check if
-            self.func(x_ul, **self.model_parameters) > y_ul.
+            The upper limit data.
         x_ll, y_ll: array_like, optional
-            The lower limit data. If provided, the below_ll method will check if
-            self.func(x_ll, **self.model_parameters) < y_ll.
+            The lower limit data.
+        sigma_ul, sigma_ll: float or array_like, optional
+            Widths used for one-sided Gaussian limit probabilities. A width is
+            required when the corresponding limit data are provided.
+        w: float, optional
+            Smooth-limit hardness. The effective limit width is sigma / w.
         """
 
         super(GaussianLikelihood_withUL_andLL, self).__init__(x=x, y=y, func=func, x_ul=x_ul, y_ul=y_ul, x_ll=x_ll, y_ll=y_ll)
         self.sigma = sigma
+        if w <= 0:
+            raise ValueError("w must be positive")
+        self.w = w
+        self.sigma_ul = sigma_ul
+        self.sigma_ll = sigma_ll
 
         # Check if sigma was provided, if not it is a parameter
         if self.sigma is None:
             self.parameters['sigma'] = None
 
     def log_likelihood(self):
-        # Check if any model predictions exceed any upper limits or are below any lower limits
-        if self.exceed_ul or self.below_ll:
-            return -1e30 #-np.inf
-
         # Calculate log-likelihood for detected data points
         log_l = np.sum(- (self.residual / self.sigma)**2 / 2 - np.log(2 * np.pi * self.sigma**2) / 2)
+
+        if self.x_ul is not None and self.y_ul is not None:
+            model_predictions_ul = self.func(self.x_ul, **self.model_parameters)
+            log_l += np.sum(norm.logcdf((self.y_ul - model_predictions_ul) / (self.sigma_ul / self.w)))
+
+        if self.x_ll is not None and self.y_ll is not None:
+            model_predictions_ll = self.func(self.x_ll, **self.model_parameters)
+            log_l += np.sum(norm.logcdf((model_predictions_ll - self.y_ll) / (self.sigma_ll / self.w)))
 
         return log_l
 

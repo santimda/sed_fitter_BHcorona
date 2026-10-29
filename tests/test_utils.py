@@ -16,6 +16,7 @@ from smbh_corona.utils import (
     L100_to_LX,
     F100_to_FX,
     LX_to_Lbol,
+    GaussianLikelihood_withUL_andLL,
 )
 from smbh_corona.constants import c, mJy, k_B, pi, arcsec
 
@@ -86,3 +87,21 @@ def test_vectorization_and_shapes():
     assert Sobs_to_TB(arr, arr * 1e9, arr * 1e-12).shape == arr.shape
     assert np.all(Omega_beam(arr, arr) > 0)
     assert np.allclose(calculate_logX(np.log10(arr), 1.0, 0.0), np.log10(arr))
+
+
+def test_smooth_limits_are_softened_by_w():
+    def model(x, offset=0.0):
+        return np.asarray(x) * 0 + offset
+
+    likelihood_soft = GaussianLikelihood_withUL_andLL(
+        [0.0], [0.0], model, sigma=1.0,
+        x_ul=[0.0], y_ul=[1.0], sigma_ul=0.1, w=1.0,
+    )
+    likelihood_strict = GaussianLikelihood_withUL_andLL(
+        [0.0], [0.0], model, sigma=1.0,
+        x_ul=[0.0], y_ul=[1.0], sigma_ul=0.1, w=10.0,
+    )
+    likelihood_soft.parameters["offset"] = 1.2
+    likelihood_strict.parameters["offset"] = 1.2
+
+    assert likelihood_strict.log_likelihood() < likelihood_soft.log_likelihood()

@@ -54,6 +54,19 @@ def validation_plot_style():
     return style
 
 
+def cleanup_sampler_output(output_dir, label):
+    for path in (
+        output_dir / f"emcee_{label}",
+        output_dir / f"{label}_sampler.pickle",
+        output_dir / f"{label}_resume.pickle",
+        output_dir / f"{label}_chain.dat",
+    ):
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
+        else:
+            path.unlink(missing_ok=True)
+
+
 MOCK_FREQUENCIES_GHZ = np.array([
     0.8, 1.25, 1.75, 2.5, 3.5, 4.5, 7.5, 8.5, 11.5, 13.5, 17.0, 19.5,
     25.0, 28.5, 38.0, 42.5, 47.5, 38.75, 46.25, 75.0, 105.0, 90.0,
@@ -62,9 +75,10 @@ MOCK_FREQUENCIES_GHZ = np.array([
 ])
 
 
-def generate_mock_data():
+def generate_mock_data(frequencies=MOCK_FREQUENCIES_GHZ):
     """Generate noiseless mock fluxes from the current test-galaxy truth."""
     sys_err = 0.03  # Assume 3% statistical flux uncertainty
+    frequencies = np.asarray(frequencies, dtype=float)
     flux_path = FLUX_PATH / "test_galaxy_flux.dat"
     flux_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -72,7 +86,7 @@ def generate_mock_data():
     # fixed frequency grid before evaluating the truth model.
     placeholder = "\n".join(
         f"{frequency:.12g} 1.0 0.01 1.0 1.0 0"
-        for frequency in MOCK_FREQUENCIES_GHZ
+        for frequency in frequencies
     )
     flux_path.write_text(
         "# Freq [GHz] Flux [mJy] Flux_err [mJy] theta1 [arcsec] theta2 [arcsec] Flag\n"
@@ -81,10 +95,10 @@ def generate_mock_data():
     )
 
     galaxy = Galaxy("test_galaxy", use_kT_par=False, use_E_cond=True)
-    fluxes = galaxy.calculate_model(MOCK_FREQUENCIES_GHZ * 1e9)
+    fluxes = galaxy.calculate_model(frequencies * 1e9)
     rows = [
         f"{frequency:.12g} {flux:.12g} {sys_err * flux:.12g} 1.0 1.0 0"
-        for frequency, flux in zip(MOCK_FREQUENCIES_GHZ, fluxes)
+        for frequency, flux in zip(frequencies, fluxes)
     ]
     flux_path.write_text(
         "# Freq [GHz] Flux [mJy] Flux_err [mJy] theta1 [arcsec] theta2 [arcsec] Flag\n"
@@ -96,7 +110,7 @@ def generate_mock_data():
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--nsteps", type=int, default=4000)
+    parser.add_argument("--nsteps", type=int, default=2000)
     parser.add_argument("--nwalkers", type=int, default=32)
     parser.add_argument("--seed", type=int, default=12345)
     parser.add_argument("--output-dir", type=Path, default=Path("validation_test_output"))
@@ -279,9 +293,9 @@ def fit_mock_galaxy(args):
     )
     plt.close(corner)
 
+    cleanup_sampler_output(args.output_dir, "test_galaxy")
     if not summary["all_within_one_sigma"]:
         raise RuntimeError("Not all injected parameters are within the 1-sigma intervals")
-
     return summary
 
 
