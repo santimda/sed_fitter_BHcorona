@@ -34,11 +34,15 @@ MOCK_FREQUENCIES_GHZ = np.array([
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--nsteps", type=int, default=2500)
+    parser.add_argument("--nsteps", type=int, default=2000)
     parser.add_argument("--nwalkers", type=int, default=32)
     parser.add_argument("--seed", type=int, default=12345)
     parser.add_argument("--w", type=float, default=None)
-    parser.add_argument("--output-dir", type=Path, default=Path("validation_test_output"))
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path(__file__).with_name("validation_output"),
+    )
     return parser.parse_args()
 
 

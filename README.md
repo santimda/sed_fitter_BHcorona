@@ -93,7 +93,7 @@ MPLBACKEND=Agg python tests/validation_test/fit_mock_galaxy.py
 
 The default run uses 32 walkers and 2000 steps and writes the regenerated flux
 file to `data/fluxes/test_galaxy_flux.dat` and its summary, SED plot, and corner
-plot to `validation_test_output/`. A shorter recovery check runs as part of the
+plot to `tests/validation_test/validation_output/`. A shorter recovery check runs as part of the
 default pytest suite.
 
 The separate mixed-limit validation uses the same model but writes detections
@@ -111,3 +111,19 @@ Bilby sampler chains and pickle files are removed after the validation completes
 The limit widths use the loaded statistical and systematic errors. Larger `w`
 values narrow the effective one-sided Gaussian width and therefore penalize model
 predictions outside the limits more strongly.
+
+## Correlation Diagnostics
+
+The empirical millimeter/X-ray relations are implemented in
+`src/smbh_corona/correlations.py`. The diagnostic script plots `L_X` on the
+horizontal axis and `L_mm` on the vertical axis, showing R23 and the single
+V26a relation at 100 GHz, and K22 at 230 GHz, including their quoted intrinsic
+scatter bands:
+
+```bash
+MPLBACKEND=Agg python tests/validation_test/plot_correlations.py
+```
+
+It writes `L100_vs_LX_correlations.pdf` and `L230_vs_LX_K22.pdf` to
+`tests/validation_test/validation_output/`. The later V26b 145 GHz relation is intentionally not
+included yet.
