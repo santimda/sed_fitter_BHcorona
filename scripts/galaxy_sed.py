@@ -34,6 +34,7 @@ from bilby.core.result import read_in_result
 from bilby.core.utils import infer_parameters_from_function
 
 from smbh_corona.config import CONFIGS_PATH
+from smbh_corona.constants import arcsec, lightday, pc
 from smbh_corona.correlations import (
     L100_to_Lbol,
     V26a_L100_to_LX2,
@@ -77,7 +78,6 @@ def load_config(galaxy_name, configs_path=CONFIGS_PATH):
     if not config_path.exists():
         if not default_path.exists():
             raise FileNotFoundError(f"Default configuration not found: {default_path}")
-        configs_path.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(default_path, config_path)
         print(f"No configuration found for {galaxy_name}.")
         print(f"Created {config_path} from the default template.")
@@ -159,6 +159,7 @@ def _prepare_output(galaxy_name, config):
         "fit_result.json",
         "fit_summary.json",
         "run_metadata.json",
+        "derived_summary.json",
         f"posterior_{galaxy_name}.pdf",
         f"SED_{galaxy_name}.pdf",
     ):
@@ -329,11 +330,13 @@ def fit_sed(galaxy_name, config, config_path):
     _save_run_metadata(
         galaxy, fit_parameters, config, config_path, output_dir
     )
-    _save_corner_plot(
-        results,
-        fit_parameters,
-        output_dir / f"posterior_{galaxy_name}.pdf",
-    )
+    medians = {
+        parameter: float(results.posterior[parameter].median())
+        for parameter in fit_parameters
+    }
+    figure = results.plot_corner(truth=medians, save=False)
+    figure.savefig(output_dir / f"posterior_{galaxy_name}.pdf", bbox_inches="tight")
+    plt.close(figure)
     _save_derived_summary(
         galaxy_name, galaxy, results, model_parameters, config, output_dir
     )
@@ -354,16 +357,6 @@ def _posterior_components(
         ):
             values.append(getattr(galaxy, attribute).copy())
     return [np.asarray(values) for values in components]
-
-
-def _save_corner_plot(results, fit_parameters, output_path):
-    medians = {
-        parameter: float(results.posterior[parameter].median())
-        for parameter in fit_parameters
-    }
-    figure = results.plot_corner(truth=medians, save=False)
-    figure.savefig(output_path, bbox_inches="tight")
-    plt.close(figure)
 
 
 def _save_sed_plot(galaxy, results, model_parameters, config, output_path):
@@ -417,8 +410,8 @@ def _save_sed_plot(galaxy, results, model_parameters, config, output_path):
         zorder=12,
         label="data",
     )
-    if np.any(galaxy.data_type == 2):
-        fake_mask = galaxy.data_type == 2
+    fake_mask = galaxy.data_type == 2
+    if np.any(fake_mask):
         axis.errorbar(
             galaxy.data_frequencies[fake_mask],
             galaxy.data_fluxes[fake_mask],
@@ -530,17 +523,13 @@ def _save_sed_plot(galaxy, results, model_parameters, config, output_path):
     plt.close(figure)
 
 
-def _summary_stats(values):
-    values = np.asarray(values, dtype=float)
-    return {
+def _derived_quantity_summary(samples, quantity):
+    values = np.asarray([sample[quantity] for sample in samples], dtype=float)
+    summary = {
         "q16": float(np.percentile(values, 16)),
         "q50": float(np.percentile(values, 50)),
         "q84": float(np.percentile(values, 84)),
     }
-
-
-def _derived_quantity_summary(samples, quantity):
-    summary = _summary_stats([sample[quantity] for sample in samples])
     if quantity in ("L100", "L2_10", "Lbol"):
         return _format_luminosity_summary(summary)
     return summary
@@ -557,6 +546,12 @@ def _format_luminosity_summary(summary):
     )
 
 
+def _format_posterior_summary(values):
+    values = np.asarray(values, dtype=float)
+    q16, q50, q84 = np.percentile(values, [16, 50, 84])
+    return f"({q50:.3f}+{q84 - q50:.3f}-{q50 - q16:.3f})"
+
+
 def _save_derived_summary(galaxy_name, galaxy, results, model_parameters, config, output_dir):
     posterior = results.posterior
     plot_config = config["plot"]
@@ -564,6 +559,21 @@ def _save_derived_summary(galaxy_name, galaxy, results, model_parameters, config
     rng = np.random.default_rng(config["fit"]["seed"])
     indices = rng.choice(len(posterior), size=sample_count, replace=False)
     derived = {"total": [], "corona_only": []}
+    corona = {
+        name: []
+        for name in (
+            "B_G",
+            "sigma_mag",
+            "beta_mag",
+            "R_uas",
+            "dt_obs_days",
+            "L_bol_cor_erg_s",
+            "nu_peak_obs_GHz",
+            "nu_peak_RF_GHz",
+            "S_peak_mJy",
+        )
+    }
+    peak_frequencies = np.geomspace(1e9, 1e13, 200)
 
     for index in indices:
         sample = posterior.iloc[index]
@@ -571,6 +581,7 @@ def _save_derived_summary(galaxy_name, galaxy, results, model_parameters, config
         z = float(sample["z"])
         magnification = float(sample["magnification"])
         distance_mpc = float(Planck18.luminosity_distance(z).value)
+        galaxy.update_parameters(parameters)
         observed_frequency_ghz = 100.0 / (1.0 + z)
         galaxy.calculate_model(observed_frequency_ghz * 1e9, **parameters)
         for component, attribute in (("total", "S_tot"), ("corona_only", "S_cor")):
@@ -596,6 +607,26 @@ def _save_derived_summary(galaxy_name, galaxy, results, model_parameters, config
                 }
             )
 
+        galaxy.calculate_model(peak_frequencies, **parameters)
+        peak_index = int(np.argmax(galaxy.S_cor))
+        radius_cm = galaxy.R_c_cm()
+        galaxy.calculate_L_bol_cor()
+        corona_values = {
+            "B_G": galaxy.B_G(),
+            "sigma_mag": galaxy.sigma_mag(),
+            "beta_mag": galaxy.beta_mag(),
+            "R_uas": radius_cm
+            / (distance_mpc * 1e6 * pc)
+            / (1e-6 * arcsec),
+            "dt_obs_days": radius_cm / lightday * (1.0 + z),
+            "L_bol_cor_erg_s": galaxy.L_bol_cor,
+            "nu_peak_obs_GHz": peak_frequencies[peak_index] / 1e9,
+            "nu_peak_RF_GHz": peak_frequencies[peak_index] * (1.0 + z) / 1e9,
+            "S_peak_mJy": galaxy.S_cor[peak_index],
+        }
+        for name, value in corona_values.items():
+            corona[name].append(float(value))
+
     summary = {
         "galaxy": galaxy_name,
         "relation": "Venselaar et al. 2026a",
@@ -614,6 +645,22 @@ def _save_derived_summary(galaxy_name, galaxy, results, model_parameters, config
             }
             for component, samples in derived.items()
         },
+        "corona": {
+            name: (
+                _format_luminosity_summary(
+                    {
+                        "q16": float(np.percentile(values, 16)),
+                        "q50": float(np.percentile(values, 50)),
+                        "q84": float(np.percentile(values, 84)),
+                    }
+                )
+                if name == "L_bol_cor_erg_s"
+                else _format_posterior_summary(
+                    values,
+                )
+            )
+            for name, values in corona.items()
+        },
     }
     (output_dir / "derived_summary.json").write_text(
         json.dumps(summary, indent=2) + "\n"
@@ -621,7 +668,7 @@ def _save_derived_summary(galaxy_name, galaxy, results, model_parameters, config
 
 
 def plot_sed(galaxy_name, config):
-    """Load a saved fit and regenerate its corner and SED plots."""
+    """Load a saved fit and regenerate its SED plot."""
     _configure_quiet_output()
     output_dir = _output_dir(galaxy_name, config)
     results = read_in_result(outdir=str(output_dir), label="fit")

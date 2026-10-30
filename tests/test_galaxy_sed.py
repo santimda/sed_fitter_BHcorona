@@ -1,8 +1,10 @@
+import argparse
 import json
 from pathlib import Path
 import sys
 
 import numpy as np
+import pytest
 
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
@@ -10,6 +12,10 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 from galaxy_sed import (
     _limit_kwargs,
     _prepare_output,
+    _derived_quantity_summary,
+    _format_luminosity_summary,
+    _format_posterior_summary,
+    _round_for_json,
     _validate_config,
     build_parser,
     load_config,
@@ -36,7 +42,11 @@ def test_parser_supports_plot_only_mode():
 
     assert args.fit is False
     assert parse_bool("True") is True
-    assert parse_bool("false") is False
+
+
+def test_parser_rejects_invalid_boolean():
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_bool("maybe")
 
 
 def test_missing_galaxy_config_is_created_from_default(tmp_path, capsys):
@@ -60,13 +70,29 @@ def test_prepare_output_cleans_only_selected_galaxy(tmp_path):
     selected_output = tmp_path / "NGC985"
     (selected_output / "emcee_fit").mkdir(parents=True)
     (selected_output / "emcee_fit" / "old.dat").write_text("old")
-    (selected_output / "fit_summary.json").write_text("old")
+    for filename in (
+        "fit_result.json",
+        "fit_summary.json",
+        "run_metadata.json",
+        "derived_summary.json",
+        "posterior_NGC985.pdf",
+        "SED_NGC985.pdf",
+    ):
+        (selected_output / filename).write_text("old")
 
     output_dir = _prepare_output("NGC985", config)
 
     assert output_dir == selected_output
     assert not (selected_output / "emcee_fit").exists()
-    assert not (selected_output / "fit_summary.json").exists()
+    for filename in (
+        "fit_result.json",
+        "fit_summary.json",
+        "run_metadata.json",
+        "derived_summary.json",
+        "posterior_NGC985.pdf",
+        "SED_NGC985.pdf",
+    ):
+        assert not (selected_output / filename).exists()
     assert (other_output / "keep.txt").read_text() == "keep"
 
 
@@ -82,26 +108,13 @@ def test_default_config_preserves_current_ngc985_settings():
     assert config["plot"]["xmax_ghz"] == 2000.0
 
 
-def test_summary_stats_return_posterior_interval():
-    from galaxy_sed import _summary_stats
-
-    summary = _summary_stats([1.0, 2.0, 3.0, 4.0, 5.0])
-
-    assert summary["q50"] == 3.0
-    assert summary["q16"] < summary["q50"] < summary["q84"]
-
-
 def test_fit_summary_values_are_rounded_recursively():
-    from galaxy_sed import _round_for_json
-
     rounded = _round_for_json({"outer": {"value": 1.23456}, "values": [2.34567]})
 
     assert rounded == {"outer": {"value": 1.235}, "values": [2.346]}
 
 
 def test_luminosity_format_uses_two_decimal_scientific_notation():
-    from galaxy_sed import _derived_quantity_summary, _format_luminosity_summary
-
     assert _format_luminosity_summary(
         {"q16": 7.784963874078932e39, "q50": 8.134e39, "q84": 8.484e39}
     ) == "(8.13+0.35-0.35)e39"
@@ -109,20 +122,21 @@ def test_luminosity_format_uses_two_decimal_scientific_notation():
         [{"L100": 7.784963874078932e39}],
         "L100",
     ) == "(7.78+0.00-0.00)e39"
-    assert _derived_quantity_summary(
+    derived = _derived_quantity_summary(
         [{"eddington_ratio": 0.0037465}], "eddington_ratio"
-    )["q50"] == 0.0037465
+    )
+    assert derived["q50"] == 0.0037465
+
+
+def test_corona_summary_uses_compact_asymmetric_quantiles():
+    assert _format_posterior_summary([1.0, 2.0, 3.0]) == "(2.000+0.680-0.680)"
 
 
 def test_invalid_config_reports_missing_section(tmp_path):
     config_path = tmp_path / "broken.json"
 
-    try:
+    with pytest.raises(ValueError, match="model"):
         _validate_config({}, config_path)
-    except ValueError as error:
-        assert "model" in str(error)
-    else:
-        raise AssertionError("Expected invalid config to raise ValueError")
 
 
 def test_limit_kwargs_includes_limit_widths():
