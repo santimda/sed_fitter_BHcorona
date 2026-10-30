@@ -11,7 +11,8 @@ def test_external_data_path_override(tmp_path):
         [
             sys.executable,
             "-c",
-            "from smbh_corona.config import DATA_PATH; print(DATA_PATH)",
+            "from smbh_corona.config import CONFIGS_PATH, DATA_PATH; "
+            "print(DATA_PATH); print(CONFIGS_PATH)",
         ],
         check=True,
         capture_output=True,
@@ -19,4 +20,6 @@ def test_external_data_path_override(tmp_path):
         env=environment,
     )
 
-    assert Path(result.stdout.strip()) == tmp_path.resolve()
+    data_path, configs_path = result.stdout.splitlines()
+    assert Path(data_path) == tmp_path.resolve()
+    assert Path(configs_path) == tmp_path.resolve() / "configs"

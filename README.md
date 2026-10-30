@@ -73,8 +73,21 @@ python scripts/example.py
 The script evaluates the NGC985 model and writes `NGC985_model_sed.txt` in the
 current directory. Plotting may require a working LaTeX installation.
 
-For a complete fit workflow, open `scripts/fit_galaxy.ipynb`. Other analysis
-notebooks are located in `scripts/`.
+Run the complete NGC985 fit and plotting workflow with:
+
+```bash
+python scripts/galaxy_sed.py NGC985
+```
+
+To regenerate the plots from the saved result without fitting again, use:
+
+```bash
+python scripts/galaxy_sed.py NGC985 --fit=False
+```
+
+Galaxy workflow settings are stored in `data/configs/<name>_config.json`. If a
+galaxy config is missing, the script creates it from `default_config.json` and
+continues. Results are written to `outdir/<name>/`.
 
 ## Mock Validation
 
