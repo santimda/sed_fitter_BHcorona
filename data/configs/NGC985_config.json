@@ -21,7 +21,7 @@
     "nsteps": 4000,
     "nwalkers": 50,
     "seed": 12345,
-    "w": 3.0,
+    "w": 5.0,
     "burn_in_fraction": 0.3,
     "perturb_fraction": 0.1,
     "prior_options": {

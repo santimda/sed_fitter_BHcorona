@@ -1,0 +1,11 @@
+{
+  "model": {"use_kT_par": true, "use_E_cond": true, "eta_mag": 0.75, "xi_ep": 10.0},
+  "data": {"min_ang_scale_arcsec": 0.9, "max_ang_scale_arcsec": 1.2},
+  "fit": {
+    "parameters": ["r_c", "log_delta", "alpha_sy", "sy_scale", "ff_scale", "RJ_scale"],
+    "nsteps": 4000, "nwalkers": 50, "seed": 12345, "w": 5.0,
+    "burn_in_fraction": 0.3, "perturb_fraction": 0.1, "prior_options": {}
+  },
+  "plot": {"xmin_ghz": 1.01, "xmax_ghz": 700.0, "ymin_mjy": 1.01, "ymax_mjy": 400.0, "posterior_samples": 1000, "confidence_sigmas": 1},
+  "output": {"root": "outdir"}
+}

@@ -195,5 +195,7 @@ cython_debug/
 
 # Files created by the scripts
 *.pdf 
+/outdir/
+/scripts/outdir/
 validation_test_output/
 tests/validation_test/validation_output/

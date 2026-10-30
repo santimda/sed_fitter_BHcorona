@@ -73,7 +73,7 @@ def test_prepare_output_cleans_only_selected_galaxy(tmp_path):
 def test_default_config_preserves_current_ngc985_settings():
     config = read_default_config()
 
-    assert config["fit"]["w"] == 3.0
+    assert config["fit"]["w"] == 5.0
     assert config["fit"]["nsteps"] == 4000
     assert config["fit"]["nwalkers"] == 50
     assert config["data"]["min_ang_scale_arcsec"] == 0.05

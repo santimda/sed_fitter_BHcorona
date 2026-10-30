@@ -21,13 +21,10 @@
     "nsteps": 4000,
     "nwalkers": 50,
     "seed": 12345,
-    "w": 3.0,
+    "w": 5.0,
     "burn_in_fraction": 0.3,
     "perturb_fraction": 0.1,
-    "prior_options": {
-      "delta_log_delta": 1.5,
-      "delta_r_c": 200
-    }
+    "prior_options": {}
   },
   "plot": {
     "xmin_ghz": 1.01,
