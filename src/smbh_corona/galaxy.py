@@ -110,7 +110,6 @@ class Galaxy:
         ''' Load parameters from the parameters file'''
         parameter_file = PARAMETERS_PATH / f"{self.name}.par"
 
-        print(f"Looking for parameter file at: {parameter_file}")
         if not os.path.isfile(parameter_file):
             raise FileNotFoundError(
                 f"Parameter file {parameter_file} not found.")

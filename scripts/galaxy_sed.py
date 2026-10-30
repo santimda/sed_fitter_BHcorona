@@ -18,6 +18,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from astropy.cosmology import Planck18
 from matplotlib.patches import Rectangle
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -33,6 +34,13 @@ from bilby.core.result import read_in_result
 from bilby.core.utils import infer_parameters_from_function
 
 from smbh_corona.config import CONFIGS_PATH
+from smbh_corona.correlations import (
+    L100_to_Lbol,
+    V26a_L100_to_LX2,
+    V26A_BOLOMETRIC_SCATTER_DEX,
+    V26A_XRAY_SCATTER_DEX,
+    flux_to_nu_luminosity,
+)
 from smbh_corona.galaxy import Galaxy
 from smbh_corona.plot_utils import (
     nice_fonts,
@@ -195,6 +203,16 @@ def _limit_kwargs(galaxy):
     return kwargs
 
 
+def _round_for_json(value, decimals=3):
+    if isinstance(value, dict):
+        return {key: _round_for_json(item, decimals) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_round_for_json(item, decimals) for item in value]
+    if isinstance(value, (float, np.floating)):
+        return round(float(value), decimals)
+    return value
+
+
 def _fit_summary(galaxy, results, model_parameters, fit_parameters, config):
     posterior = results.posterior
     median_parameters = {
@@ -306,10 +324,18 @@ def fit_sed(galaxy_name, config, config_path):
         galaxy, results, model_parameters, fit_parameters, config
     )
     (output_dir / "fit_summary.json").write_text(
-        json.dumps(summary, indent=2) + "\n"
+        json.dumps(_round_for_json(summary), indent=2) + "\n"
     )
     _save_run_metadata(
         galaxy, fit_parameters, config, config_path, output_dir
+    )
+    _save_corner_plot(
+        results,
+        fit_parameters,
+        output_dir / f"posterior_{galaxy_name}.pdf",
+    )
+    _save_derived_summary(
+        galaxy_name, galaxy, results, model_parameters, config, output_dir
     )
     return summary
 
@@ -504,6 +530,96 @@ def _save_sed_plot(galaxy, results, model_parameters, config, output_path):
     plt.close(figure)
 
 
+def _summary_stats(values):
+    values = np.asarray(values, dtype=float)
+    return {
+        "q16": float(np.percentile(values, 16)),
+        "q50": float(np.percentile(values, 50)),
+        "q84": float(np.percentile(values, 84)),
+    }
+
+
+def _derived_quantity_summary(samples, quantity):
+    summary = _summary_stats([sample[quantity] for sample in samples])
+    if quantity in ("L100", "L2_10", "Lbol"):
+        return _format_luminosity_summary(summary)
+    return summary
+
+
+def _format_luminosity_summary(summary):
+    median = summary["q50"]
+    _, exponent = f"{median:.2e}".split("e")
+    exponent = int(exponent)
+    scale = 10**exponent
+    return (
+        f"({median / scale:.2f}+{(summary['q84'] - median) / scale:.2f}"
+        f"-{(median - summary['q16']) / scale:.2f})e{exponent}"
+    )
+
+
+def _save_derived_summary(galaxy_name, galaxy, results, model_parameters, config, output_dir):
+    posterior = results.posterior
+    plot_config = config["plot"]
+    sample_count = min(plot_config["posterior_samples"], len(posterior))
+    rng = np.random.default_rng(config["fit"]["seed"])
+    indices = rng.choice(len(posterior), size=sample_count, replace=False)
+    derived = {"total": [], "corona_only": []}
+
+    for index in indices:
+        sample = posterior.iloc[index]
+        parameters = sample[model_parameters].to_dict()
+        z = float(sample["z"])
+        magnification = float(sample["magnification"])
+        distance_mpc = float(Planck18.luminosity_distance(z).value)
+        observed_frequency_ghz = 100.0 / (1.0 + z)
+        galaxy.calculate_model(observed_frequency_ghz * 1e9, **parameters)
+        for component, attribute in (("total", "S_tot"), ("corona_only", "S_cor")):
+            l100 = float(
+                flux_to_nu_luminosity(
+                    getattr(galaxy, attribute)[0],
+                    distance_mpc,
+                    100.0,
+                    magnification=magnification,
+                )
+            )
+            lx2 = float(V26a_L100_to_LX2(l100))
+            lbol = float(L100_to_Lbol(l100))
+            lx2 *= 10 ** rng.normal(0.0, V26A_XRAY_SCATTER_DEX)
+            lbol *= 10 ** rng.normal(0.0, V26A_BOLOMETRIC_SCATTER_DEX)
+            eddington_ratio = lx2 / (1.26e38 * 10 ** float(sample["log_M"]))
+            derived[component].append(
+                {
+                    "L100": l100,
+                    "L2_10": lx2,
+                    "Lbol": lbol,
+                    "eddington_ratio": eddington_ratio,
+                }
+            )
+
+    summary = {
+        "galaxy": galaxy_name,
+        "relation": "Venselaar et al. 2026a",
+        "rest_frequency_ghz": 100.0,
+        "intrinsic": True,
+        "demagnified": True,
+        "scatter_applied": {
+            "L2_10_dex": V26A_XRAY_SCATTER_DEX,
+            "Lbol_dex": V26A_BOLOMETRIC_SCATTER_DEX,
+        },
+        "posterior_samples": sample_count,
+        "emission": {
+            component: {
+                quantity: _derived_quantity_summary(samples, quantity)
+                for quantity in ("L100", "L2_10", "Lbol", "eddington_ratio")
+            }
+            for component, samples in derived.items()
+        },
+    }
+    (output_dir / "derived_summary.json").write_text(
+        json.dumps(summary, indent=2) + "\n"
+    )
+
+
 def plot_sed(galaxy_name, config):
     """Load a saved fit and regenerate its corner and SED plots."""
     _configure_quiet_output()
@@ -511,12 +627,6 @@ def plot_sed(galaxy_name, config):
     results = read_in_result(outdir=str(output_dir), label="fit")
     galaxy = _make_galaxy(galaxy_name, config)
     model_parameters = infer_parameters_from_function(galaxy.calculate_model)
-    fit_parameters = galaxy.get_fit_parameters(config["fit"]["parameters"])
-    _save_corner_plot(
-        results,
-        fit_parameters,
-        output_dir / f"posterior_{galaxy_name}.pdf",
-    )
     _save_sed_plot(
         galaxy,
         results,
@@ -530,10 +640,12 @@ def main():
     args = build_parser().parse_args()
     config, config_path = load_config(args.galaxy_name)
     if args.fit:
+        print(f"Fitting SED of {args.galaxy_name}")
         fit_sed(args.galaxy_name, config, config_path)
+        summary_path = (_output_dir(args.galaxy_name, config) / "derived_summary.json").resolve()
+        print(f"Summary of derived parameters saved to {summary_path}")
+    print(f"Plotting SED of {args.galaxy_name}")
     plot_sed(args.galaxy_name, config)
-    summary_path = _output_dir(args.galaxy_name, config) / "fit_summary.json"
-    print(summary_path.read_text().rstrip())
 
 
 if __name__ == "__main__":

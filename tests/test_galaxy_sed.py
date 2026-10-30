@@ -82,6 +82,38 @@ def test_default_config_preserves_current_ngc985_settings():
     assert config["plot"]["xmax_ghz"] == 2000.0
 
 
+def test_summary_stats_return_posterior_interval():
+    from galaxy_sed import _summary_stats
+
+    summary = _summary_stats([1.0, 2.0, 3.0, 4.0, 5.0])
+
+    assert summary["q50"] == 3.0
+    assert summary["q16"] < summary["q50"] < summary["q84"]
+
+
+def test_fit_summary_values_are_rounded_recursively():
+    from galaxy_sed import _round_for_json
+
+    rounded = _round_for_json({"outer": {"value": 1.23456}, "values": [2.34567]})
+
+    assert rounded == {"outer": {"value": 1.235}, "values": [2.346]}
+
+
+def test_luminosity_format_uses_two_decimal_scientific_notation():
+    from galaxy_sed import _derived_quantity_summary, _format_luminosity_summary
+
+    assert _format_luminosity_summary(
+        {"q16": 7.784963874078932e39, "q50": 8.134e39, "q84": 8.484e39}
+    ) == "(8.13+0.35-0.35)e39"
+    assert _derived_quantity_summary(
+        [{"L100": 7.784963874078932e39}],
+        "L100",
+    ) == "(7.78+0.00-0.00)e39"
+    assert _derived_quantity_summary(
+        [{"eddington_ratio": 0.0037465}], "eddington_ratio"
+    )["q50"] == 0.0037465
+
+
 def test_invalid_config_reports_missing_section(tmp_path):
     config_path = tmp_path / "broken.json"
 
