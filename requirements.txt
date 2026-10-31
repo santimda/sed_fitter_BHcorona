@@ -2,4 +2,4 @@ numpy
 scipy
 matplotlib
 astropy
-bilby
+bilby>=2.8.2

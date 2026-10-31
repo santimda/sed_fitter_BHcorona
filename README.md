@@ -42,6 +42,8 @@ Flags identify detections (`0`), upper limits (`1`), fake or diagnostic points
 
 ## Installation
 
+The supported runtime is Python 3.10 or newer with Bilby 2.8.2 or newer.
+
 ```bash
 git clone https://github.com/santimda/sed_fitter_BHcorona.git
 cd sed_fitter_BHcorona

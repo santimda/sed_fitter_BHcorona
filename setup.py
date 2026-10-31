@@ -21,9 +21,9 @@ setup(
         "scipy",
         "matplotlib",
         "astropy",
-        "bilby",
+        "bilby>=2.8.2",
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.10",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
