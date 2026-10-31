@@ -23,9 +23,8 @@ from matplotlib.patches import Rectangle
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 logging.getLogger("bilby").setLevel(logging.ERROR)
-warnings.filterwarnings("ignore", category=FutureWarning, module=r"bilby\..*")
 warnings.filterwarnings(
-    "ignore", category=DeprecationWarning, module=r"(bilby|emcee)\..*"
+    "ignore", category=DeprecationWarning, module=r"emcee\..*"
 )
 
 from bilby import run_sampler
@@ -125,9 +124,8 @@ def _validate_config(config, config_path):
 
 def _configure_quiet_output():
     logging.getLogger("bilby").setLevel(logging.ERROR)
-    warnings.filterwarnings("ignore", category=FutureWarning, module=r"bilby\..*")
     warnings.filterwarnings(
-        "ignore", category=DeprecationWarning, module=r"(bilby|emcee)\..*"
+        "ignore", category=DeprecationWarning, module=r"emcee\..*"
     )
 
 

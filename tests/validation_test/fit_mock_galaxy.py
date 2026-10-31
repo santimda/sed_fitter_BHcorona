@@ -14,8 +14,7 @@ import numpy as np
 import bilby
 
 logging.getLogger("bilby").setLevel(logging.ERROR)
-warnings.filterwarnings("ignore", category=FutureWarning, module=r"bilby\..*")
-warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"(bilby|emcee)\..*")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"emcee\..*")
 
 from bilby.core.prior import DeltaFunction, PriorDict, Uniform
 from bilby.core.utils import infer_parameters_from_function
@@ -44,8 +43,7 @@ FIT_PARAMETERS = [
 
 def configure_quiet_output():
     logging.getLogger("bilby").setLevel(logging.ERROR)
-    warnings.filterwarnings("ignore", category=FutureWarning, module=r"bilby\..*")
-    warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"(bilby|emcee)\..*")
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"emcee\..*")
 
 
 def validation_plot_style():

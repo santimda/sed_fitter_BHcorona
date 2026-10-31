@@ -142,6 +142,9 @@ The limit widths use the loaded statistical and systematic errors. Larger `w`
 values narrow the effective one-sided Gaussian width and therefore penalize model
 predictions outside the limits more strongly.
 
+The custom likelihood consumes model parameters through Bilby's explicit
+parameter-dictionary API; this was tested with Bilby 2.8.2.
+
 ## Correlation Diagnostics
 
 The empirical millimeter/X-ray relations are implemented in

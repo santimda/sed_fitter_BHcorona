@@ -85,19 +85,40 @@ def test_vectorization_and_shapes():
     assert np.allclose(calculate_logX(np.log10(arr), 1.0, 0.0), np.log10(arr))
 
 
-def test_smooth_limits_are_softened_by_w():
+def test_smooth_limits_are_softened_by_w(monkeypatch):
+    from bilby.core import likelihood as bilby_likelihood
+
+    monkeypatch.setattr(bilby_likelihood, "PARAMETERS_AS_STATE", "FALSE")
+
     def model(x, offset=0.0):
         return np.asarray(x) * 0 + offset
 
     likelihood_soft = GaussianLikelihood_withUL_andLL(
         [0.0], [0.0], model, sigma=1.0,
         x_ul=[0.0], y_ul=[1.0], sigma_ul=0.1, w=1.0,
+        x_ll=[0.0], y_ll=[-1.0], sigma_ll=0.1,
     )
     likelihood_strict = GaussianLikelihood_withUL_andLL(
         [0.0], [0.0], model, sigma=1.0,
         x_ul=[0.0], y_ul=[1.0], sigma_ul=0.1, w=10.0,
+        x_ll=[0.0], y_ll=[-1.0], sigma_ll=0.1,
     )
-    likelihood_soft.parameters["offset"] = 1.2
-    likelihood_strict.parameters["offset"] = 1.2
+    parameters = {"offset": 1.2}
+    assert likelihood_strict.log_likelihood(parameters) < likelihood_soft.log_likelihood(
+        parameters
+    )
 
-    assert likelihood_strict.log_likelihood() < likelihood_soft.log_likelihood()
+
+def test_likelihood_uses_sampled_sigma_from_parameters(monkeypatch):
+    from bilby.core import likelihood as bilby_likelihood
+
+    monkeypatch.setattr(bilby_likelihood, "PARAMETERS_AS_STATE", "FALSE")
+
+    def model(x, offset):
+        return np.asarray(x) * 0 + offset
+
+    likelihood = GaussianLikelihood_withUL_andLL([0.0], [1.0], model, sigma=None)
+    log_likelihood = likelihood.log_likelihood({"offset": 0.0, "sigma": 2.0})
+
+    expected = -(1.0 / 2.0) ** 2 / 2 - np.log(2 * np.pi * 2.0**2) / 2
+    assert log_likelihood == pytest.approx(expected)

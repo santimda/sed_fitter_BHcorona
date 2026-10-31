@@ -316,12 +316,11 @@ class Analytical1DLikelihood_withUL_andLL(Likelihood):
     """
 
     def __init__(self, x, y, func, x_ul=None, y_ul=None, x_ll=None, y_ll=None):
-        parameters = infer_parameters_from_function(func)
-        super(Analytical1DLikelihood_withUL_andLL, self).__init__(dict.fromkeys(parameters))
+        super().__init__()
         self.x = x
         self.y = y
         self._func = func
-        self._function_keys = list(self.parameters.keys())
+        self._function_keys = infer_parameters_from_function(func)
         self.x_ul = x_ul
         self.y_ul = y_ul
         self.x_ll = x_ll
@@ -335,10 +334,9 @@ class Analytical1DLikelihood_withUL_andLL(Likelihood):
         """ Make func read-only """
         return self._func
 
-    @property
-    def model_parameters(self):
-        """ This sets up the function only parameters (i.e. not sigma for the GaussianLikelihood) """
-        return {key: self.parameters[key] for key in self.function_keys}
+    def model_parameters(self, parameters):
+        """Return the model-function parameters from a Bilby parameter mapping."""
+        return {key: parameters[key] for key in self.function_keys}
 
     @property
     def function_keys(self):
@@ -372,24 +370,25 @@ class Analytical1DLikelihood_withUL_andLL(Likelihood):
             y = np.array([y])
         self._y = y
 
-    @property
-    def residual(self):
-        """ Residual of the function against the data. """
-        return self.y - self.func(self.x, **self.model_parameters)
+    def residual(self, parameters):
+        """Residual of the model evaluated with the supplied parameters."""
+        return self.y - self.func(self.x, **self.model_parameters(parameters))
 
-    @property
-    def exceed_ul(self):
-        """Check if model predictions exceed upper limits"""
+    def exceed_ul(self, parameters):
+        """Check whether model predictions exceed upper limits."""
         if self.x_ul is not None and self.y_ul is not None:
-            model_predictions_ul = self.func(self.x_ul, **self.model_parameters)
+            model_predictions_ul = self.func(
+                self.x_ul, **self.model_parameters(parameters)
+            )
             return np.any(model_predictions_ul > self.y_ul)
         return False
 
-    @property
-    def below_ll(self):
-        """Check if model predictions are below lower limits"""
+    def below_ll(self, parameters):
+        """Check whether model predictions fall below lower limits."""
         if self.x_ll is not None and self.y_ll is not None:
-            model_predictions_ll = self.func(self.x_ll, **self.model_parameters)
+            model_predictions_ll = self.func(
+                self.x_ll, **self.model_parameters(parameters)
+            )
             return np.any(model_predictions_ll < self.y_ll)
         return False
 
@@ -447,20 +446,22 @@ class GaussianLikelihood_withUL_andLL(Analytical1DLikelihood_withUL_andLL):
         self.sigma_ul = sigma_ul
         self.sigma_ll = sigma_ll
 
-        # Check if sigma was provided, if not it is a parameter
-        if self.sigma is None:
-            self.parameters['sigma'] = None
-
-    def log_likelihood(self):
+    def log_likelihood(self, parameters=None):
+        parameters = {} if parameters is None else parameters
+        sigma = self._sigma if self._sigma is not None else parameters["sigma"]
+        residual = self.residual(parameters)
         # Calculate log-likelihood for detected data points
-        log_l = np.sum(- (self.residual / self.sigma)**2 / 2 - np.log(2 * np.pi * self.sigma**2) / 2)
+        log_l = np.sum(
+            -(residual / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma**2) / 2
+        )
+        model_parameters = self.model_parameters(parameters)
 
         if self.x_ul is not None and self.y_ul is not None:
-            model_predictions_ul = self.func(self.x_ul, **self.model_parameters)
+            model_predictions_ul = self.func(self.x_ul, **model_parameters)
             log_l += np.sum(norm.logcdf((self.y_ul - model_predictions_ul) / (self.sigma_ul / self.w)))
 
         if self.x_ll is not None and self.y_ll is not None:
-            model_predictions_ll = self.func(self.x_ll, **self.model_parameters)
+            model_predictions_ll = self.func(self.x_ll, **model_parameters)
             log_l += np.sum(norm.logcdf((model_predictions_ll - self.y_ll) / (self.sigma_ll / self.w)))
 
         return log_l
@@ -470,13 +471,8 @@ class GaussianLikelihood_withUL_andLL(Analytical1DLikelihood_withUL_andLL):
 
     @property
     def sigma(self):
-        """
-        This checks if sigma has been set in parameters. If so, that value
-        will be used. Otherwise, the attribute sigma is used. The logic is
-        that if sigma is not in parameters the attribute is used which was
-        given at init (i.e. the known sigma as either a float or array).
-        """
-        return self.parameters.get('sigma', self._sigma)
+        """Return the fixed sigma, or ``None`` when sigma is sampled."""
+        return self._sigma
 
     @sigma.setter
     def sigma(self, sigma):

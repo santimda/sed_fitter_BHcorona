@@ -1,4 +1,5 @@
-"""Empirical millimeter, X-ray, and bolometric luminosity relations.
+"""Empirical millimeter, X-ray, and bolometric luminosity relations from
+Kawamuro et al. 2022 (K22), Ricci et al. 2023 (R23), and Venselaar et al. 2026 (V26a)
 
 All luminosities in this module are luminosities in ``erg/s``.  The
 millimeter quantities are ``nu * L_nu`` at the frequency in the function
