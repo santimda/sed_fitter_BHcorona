@@ -35,6 +35,13 @@ def test_v26a_relation_round_trips_for_scalar_and_array_inputs():
 def test_correlations_warn_outside_range_and_reject_nonpositive_input():
     with pytest.warns(RuntimeWarning, match="R23 is calibrated"):
         R23_L100_to_LX2(1e42)
+    with pytest.warns(RuntimeWarning, match="V26a is calibrated"):
+        extrapolated_lx2 = V26a_L100_to_LX2(1e42)
+    with pytest.warns(RuntimeWarning, match="no real X-ray luminosity solution"):
+        no_solution_lx2 = V26a_L100_to_LX2(1e35)
+
+    assert np.isfinite(extrapolated_lx2) and extrapolated_lx2 > 0
+    assert np.isnan(no_solution_lx2)
     with pytest.raises(ValueError):
         R23_L100_to_LX2(0)
 

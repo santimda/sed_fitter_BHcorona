@@ -523,6 +523,8 @@ def _save_sed_plot(galaxy, results, model_parameters, config, output_path):
 
 def _derived_quantity_summary(samples, quantity):
     values = np.asarray([sample[quantity] for sample in samples], dtype=float)
+    if np.any(~np.isfinite(values)):
+        return None
     summary = {
         "q16": float(np.percentile(values, 16)),
         "q50": float(np.percentile(values, 50)),

@@ -54,10 +54,11 @@ def _linear_relation(luminosity, slope, intercept):
 def _warn_outside_calibration(luminosity, relation, lower, upper):
     luminosity = _positive_array(luminosity, "luminosity")
     log_luminosity = np.log10(luminosity)
-    if np.any((log_luminosity < lower) | (log_luminosity > upper)):
+    outside_range = np.any((log_luminosity < lower) | (log_luminosity > upper))
+    if outside_range:
         warnings.warn(
             f"{relation} is calibrated for log10 luminosity in "
-            f"[{lower:g}, {upper:g}]; extrapolating outside this range",
+            f"[{lower:g}, {upper:g}]; results outside this range may be unreliable",
             RuntimeWarning,
             stacklevel=3,
         )
@@ -102,15 +103,23 @@ def V26a_L100_to_LX2(L100):
 
     The relation is expressed as ``log10(L100) - 38 =
     0.15*x**2 + 1.20*x + 0.54``, where ``x = log10(L2-10) - 43``.
+    Inputs without a real inverse solution warn and return ``NaN``.
     """
     _warn_outside_calibration(L100, "V26a", 36, 41)
     log_l100 = np.log10(_positive_array(L100, "L100"))
     y = log_l100 - 38.0
     a, b, c = 0.15, 1.20, 0.54
     discriminant = b**2 - 4 * a * (c - y)
-    if np.any(discriminant < 0):
-        raise ValueError("L100 is outside the real-valued V26a relation domain")
-    x = (-b + np.sqrt(discriminant)) / (2 * a)
+    no_real_solution = discriminant < 0
+    if np.any(no_real_solution):
+        warnings.warn(
+            "V26a has no real X-ray luminosity solution for some L100 values; "
+            "returning NaN for those values",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+    with np.errstate(invalid="ignore"):
+        x = (-b + np.sqrt(discriminant)) / (2 * a)
     return 10 ** (x + 43.0)
 
 

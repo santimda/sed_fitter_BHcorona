@@ -8,6 +8,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 
 from galaxy_sed import (
+    _derived_quantity_summary,
     _prepare_output,
     _round_for_json,
     _validate_config,
@@ -80,6 +81,10 @@ def test_fit_summary_values_are_rounded_recursively():
     rounded = _round_for_json({"outer": {"value": 1.23456}, "values": [2.34567]})
 
     assert rounded == {"outer": {"value": 1.235}, "values": [2.346]}
+
+
+def test_unavailable_v26a_values_leave_summary_quantity_null():
+    assert _derived_quantity_summary([{"L2_10": float("nan")}], "L2_10") is None
 
 
 def test_invalid_config_reports_missing_section(tmp_path):
