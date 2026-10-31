@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+from scipy.stats import norm
 
 from smbh_corona.utils import (
     Sobs_to_TB,
@@ -122,3 +123,44 @@ def test_likelihood_uses_sampled_sigma_from_parameters(monkeypatch):
 
     expected = -(1.0 / 2.0) ** 2 / 2 - np.log(2 * np.pi * 2.0**2) / 2
     assert log_likelihood == pytest.approx(expected)
+
+
+def test_likelihood_batches_detections_and_limits_into_one_model_call(monkeypatch):
+    from bilby.core import likelihood as bilby_likelihood
+
+    monkeypatch.setattr(bilby_likelihood, "PARAMETERS_AS_STATE", "FALSE")
+    calls = []
+
+    def model(x, offset):
+        x = np.asarray(x)
+        calls.append(x.copy())
+        return 2 * x + offset
+
+    likelihood = GaussianLikelihood_withUL_andLL(
+        x=[1.0, 2.0],
+        y=[2.0, 3.0],
+        func=model,
+        sigma=0.5,
+        x_ul=[3.0],
+        y_ul=[6.5],
+        sigma_ul=0.4,
+        x_ll=[4.0],
+        y_ll=[6.0],
+        sigma_ll=0.3,
+        w=2.0,
+    )
+
+    actual = likelihood.log_likelihood({"offset": 0.25})
+    detection_predictions = 2 * np.array([1.0, 2.0]) + 0.25
+    upper_prediction = 2 * 3.0 + 0.25
+    lower_prediction = 2 * 4.0 + 0.25
+    expected = np.sum(
+        -((np.array([2.0, 3.0]) - detection_predictions) / 0.5) ** 2 / 2
+        - np.log(2 * np.pi * 0.5**2) / 2
+    )
+    expected += norm.logcdf((6.5 - upper_prediction) / (0.4 / 2.0))
+    expected += norm.logcdf((lower_prediction - 6.0) / (0.3 / 2.0))
+
+    assert actual == pytest.approx(expected)
+    assert len(calls) == 1
+    assert np.array_equal(calls[0], [1.0, 2.0, 3.0, 4.0])

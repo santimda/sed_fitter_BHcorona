@@ -449,20 +449,44 @@ class GaussianLikelihood_withUL_andLL(Analytical1DLikelihood_withUL_andLL):
     def log_likelihood(self, parameters=None):
         parameters = {} if parameters is None else parameters
         sigma = self._sigma if self._sigma is not None else parameters["sigma"]
-        residual = self.residual(parameters)
+        frequency_groups = [self.x]
+        group_sizes = [len(self.x)]
+        if self.x_ul is not None and self.y_ul is not None:
+            frequency_groups.append(self.x_ul)
+            group_sizes.append(len(self.x_ul))
+        if self.x_ll is not None and self.y_ll is not None:
+            frequency_groups.append(self.x_ll)
+            group_sizes.append(len(self.x_ll))
+
+        model_parameters = self.model_parameters(parameters)
+        predictions = np.asarray(
+            self.func(np.concatenate(frequency_groups), **model_parameters)
+        )
+        prediction_groups = np.split(predictions, np.cumsum(group_sizes)[:-1])
+
         # Calculate log-likelihood for detected data points
+        residual = self.y - prediction_groups[0]
         log_l = np.sum(
             -(residual / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma**2) / 2
         )
-        model_parameters = self.model_parameters(parameters)
 
+        group_index = 1
         if self.x_ul is not None and self.y_ul is not None:
-            model_predictions_ul = self.func(self.x_ul, **model_parameters)
-            log_l += np.sum(norm.logcdf((self.y_ul - model_predictions_ul) / (self.sigma_ul / self.w)))
+            model_predictions_ul = prediction_groups[group_index]
+            log_l += np.sum(
+                norm.logcdf(
+                    (self.y_ul - model_predictions_ul) / (self.sigma_ul / self.w)
+                )
+            )
+            group_index += 1
 
         if self.x_ll is not None and self.y_ll is not None:
-            model_predictions_ll = self.func(self.x_ll, **model_parameters)
-            log_l += np.sum(norm.logcdf((model_predictions_ll - self.y_ll) / (self.sigma_ll / self.w)))
+            model_predictions_ll = prediction_groups[group_index]
+            log_l += np.sum(
+                norm.logcdf(
+                    (model_predictions_ll - self.y_ll) / (self.sigma_ll / self.w)
+                )
+            )
 
         return log_l
 
