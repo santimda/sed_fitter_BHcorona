@@ -1,6 +1,7 @@
 import os
 import json
 import numpy as np
+from functools import lru_cache
 from scipy.stats import gmean
 import scipy.stats as stats
 from bilby.core.utils import infer_parameters_from_function
@@ -24,6 +25,12 @@ from smbh_corona.correlations import (
 )
 import smbh_corona.corona_sed
 from smbh_corona.diffuse_emission import RJ_dust, pl_emission, pl_emission_abs, pl_emission_cl_abs
+
+
+@lru_cache(maxsize=128)
+def _luminosity_distance_mpc(redshift):
+    """Return Planck18 luminosity distance in Mpc, cached by exact redshift."""
+    return float(Planck18.luminosity_distance(redshift).value)
 
 
 class Galaxy:
@@ -279,7 +286,7 @@ class Galaxy:
 
         # honor the passed-in values, if any
         z = z if z is not None else self.z
-        D_L = Planck18.luminosity_distance(z).value  # Recalculate D_L based on the effective z
+        D_L = _luminosity_distance_mpc(float(z))
         self.D_L = D_L  # Update self.D_L with the recalculated value
         magnification = magnification if magnification is not None else self.magnification
 

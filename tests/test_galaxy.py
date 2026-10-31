@@ -7,8 +7,9 @@ import numpy as np
 import pytest
 import pandas as pd
 from bilby.core.utils import infer_parameters_from_function
+from astropy.cosmology import Planck18
 
-from smbh_corona.galaxy import Galaxy
+from smbh_corona.galaxy import Galaxy, _luminosity_distance_mpc
 from smbh_corona.constants import arcsec
 from smbh_corona.utils import Omega_beam
 
@@ -85,6 +86,20 @@ def test_kT_and_E_cond_independence(g):
     # since use_kT_par=False, kT remains as in seed_parameters
     assert pytest.approx(50.0) == g.kT
     # E_cond not used here
+
+
+def test_luminosity_distance_cache_is_exact_and_reuses_redshift():
+    redshift = 0.0427
+    _luminosity_distance_mpc.cache_clear()
+
+    distance = _luminosity_distance_mpc(redshift)
+    expected = float(Planck18.luminosity_distance(redshift).value)
+    repeated_distance = _luminosity_distance_mpc(redshift)
+
+    assert distance == expected
+    assert repeated_distance == expected
+    assert _luminosity_distance_mpc.cache_info().hits == 1
+    assert _luminosity_distance_mpc.cache_info().misses == 1
 
 
 def test_B_G_sigma_beta_monotonic(g):
