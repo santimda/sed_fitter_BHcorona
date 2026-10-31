@@ -60,9 +60,9 @@ sigT = 6.652e-25
 # Decorator for memoization (caching)
 
 
-@lru_cache(maxsize=None)
 def memoize(func):
-    return func
+    """Cache scalar thermal-synchrotron helper evaluations with bounded size."""
+    return lru_cache(maxsize=4096)(func)
 
 
 @memoize
@@ -393,7 +393,7 @@ def alphanu_pl(x, n, B, Theta, delta=1e-1, p=3.0, z_cool=np.inf):
     return val
 
 
-def jnu_th(x, n, B, Theta, z_cool=np.inf):
+def jnu_th(x, n, B, Theta, z_cool=np.inf, I_x=None):
     '''Synchrotron emissivity of thermal electrons (eqs. 10,20; MQ21)
 
     Parameters
@@ -416,14 +416,15 @@ def jnu_th(x, n, B, Theta, z_cool=np.inf):
         Synchrotron emissivity
     '''
 
-    val = (3.0**0.5/(8.0*np.pi))*(q**3/(me*c**2))*f_fun(Theta)*n*B*x*I_of_x(x)
+    I_x = I_of_x(x) if I_x is None else I_x
+    val = (3.0**0.5/(8.0*np.pi))*(q**3/(me*c**2))*f_fun(Theta)*n*B*x*I_x
     # fast-cooling correction:
     z0 = np.cbrt(2.0*x)
     val *= np.minimum(1e0, z_cool/z0)
     return val
 
 
-def alphanu_th(x, n, B, Theta, z_cool=np.inf):
+def alphanu_th(x, n, B, Theta, z_cool=np.inf, I_x=None):
     '''Synchrotron absorption coeff of thermal electrons (eqs. 12,20; MQ21)
 
     Parameters
@@ -446,14 +447,15 @@ def alphanu_th(x, n, B, Theta, z_cool=np.inf):
         Synchrotron absorption coefficient
     '''
 
-    val = (np.pi*3.0**(-3.0/2.0))*q*(n/(Theta**5*B))*f_fun(Theta)/x * I_of_x(x)
+    I_x = I_of_x(x) if I_x is None else I_x
+    val = (np.pi*3.0**(-3.0/2.0))*q*(n/(Theta**5*B))*f_fun(Theta)/x * I_x
     # fast-cooling correction:
     z0 = np.cbrt(2.0*x)
     val *= np.minimum(1e0, z_cool/z0)
     return val
 
 
-def tau_nu(x, n, R, B, Theta, delta=1e-1, p=3.0, z_cool=np.inf):
+def tau_nu(x, n, R, B, Theta, delta=1e-1, p=3.0, z_cool=np.inf, I_x=None):
     '''Total (thermal+non-thermal) synchrotron optical depth
 
     Parameters
@@ -482,7 +484,7 @@ def tau_nu(x, n, R, B, Theta, delta=1e-1, p=3.0, z_cool=np.inf):
         Synchrotron absorption coefficient
     '''
 
-    val = R*(alphanu_th(x, n, B, Theta, z_cool=z_cool) +
+    val = R*(alphanu_th(x, n, B, Theta, z_cool=z_cool, I_x=I_x) +
              alphanu_pl(x, n, B, Theta, delta=delta, p=p, z_cool=z_cool))
     return val
 
@@ -545,10 +547,13 @@ def Lnu_fun(nu, ne, R, Theta, B, t, delta=1e-1, p=3.0):
     z_cool = (6.0*np.pi*me*c/(sigT*B**2*t))/Theta
     # normalized frequency:
     x = nu/nu_Theta(Theta, B)
+    I_x = I_of_x(x)
     # calculate total emissivity & optical depth:
-    j = jnu_th(x, ne, B, Theta, z_cool=z_cool) + \
+    j = jnu_th(x, ne, B, Theta, z_cool=z_cool, I_x=I_x) + \
         jnu_pl(x, ne, B, Theta, delta=delta, p=p, z_cool=z_cool)
-    tau = tau_nu(x, ne, R, B, Theta, delta=delta, p=p, z_cool=z_cool)
+    tau = tau_nu(
+        x, ne, R, B, Theta, delta=delta, p=p, z_cool=z_cool, I_x=I_x
+    )
     # Calculate specific luminosity Lnu (eq. 21, MQ21):
     val = 4.0 * np.pi**2 * R**3 * j
     # Incorporate the transmission factor, which is (1-e^-tau)/tau ~ 1 for tau << 1:
