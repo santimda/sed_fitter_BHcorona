@@ -34,7 +34,9 @@ def test_systematic_error_fractions_for_representative_bands():
 def test_soft_mixed_limits_use_explicit_parameters_and_w(monkeypatch):
     from bilby.core import likelihood as bilby_likelihood
 
-    monkeypatch.setattr(bilby_likelihood, "PARAMETERS_AS_STATE", "FALSE")
+    monkeypatch.setattr(
+        bilby_likelihood, "PARAMETERS_AS_STATE", "FALSE", raising=False
+    )
 
     def model(x, offset):
         return np.asarray(x) * 0 + offset
