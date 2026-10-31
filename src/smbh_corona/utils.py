@@ -138,22 +138,6 @@ def L230_to_LX(L230):
     log_LX = calculate_logX( np.log10(L230), alpha, beta )
     return 10**log_LX
 
-def F230_to_FX(F230):
-    """
-    Calculate the X-ray flux in the 14-150 keV range using
-    the linear relation from Kawamuro+22 (Table 2) for RQ AGNs.
-
-    Parameters:
-    F230 (float): The value of nu*F_nu at nu=230 GHz (in erg/s/cm2)
-
-    Returns:
-    float: The calculated FX value in erg/s/cm2
-    """
-    alpha = 1.17  # +0.17 -0.13
-    beta = -2.73 # +1.8 -1.3
-    log_FX = calculate_logX( np.log10(F230), alpha, beta )
-    return 10**log_FX
-
 def L100_to_LX2(L100):
     """
     Calculate the X-ray luminosity in the 2-10 keV range using
@@ -185,22 +169,6 @@ def L100_to_LX(L100):
     beta = -14.4 # \pm 0.8
     log_LX = calculate_logX( np.log10(L100), alpha, beta )
     return 10**log_LX
-
-def F100_to_FX(F100):
-    """
-    Calculate the X-ray flux in the 14-150 keV range using
-    the linear relation from Ricci+23 (Eq. 2).
-
-    Parameters:
-    F100 (float): The value of nu*F_nu at nu=100 GHz (in erg/s/cm2)
-
-    Returns:
-    float: The calculated FX value in erg/s/cm2
-    """
-    alpha = 1.37 # \pm 0.04
-    beta = -1.3  # \pm 0.4
-    log_FX = calculate_logX( np.log10(F100), alpha, beta )
-    return 10**log_FX
 
 def LX_to_Lbol(LX):
     """

@@ -136,6 +136,28 @@ def test_Edd_ratio(g):
     assert np.isclose(g.calculate_Edd_ratio(L_X), expected)
 
 
+def test_calc_X_uses_current_galaxy_parameters_by_default(g, monkeypatch):
+    calls = []
+
+    def calculate_model(nu):
+        calls.append(nu)
+        g.S_tot = np.array([1e4])
+
+    monkeypatch.setattr(g, "calculate_model", calculate_model)
+    g.D_L = 100.0
+
+    with pytest.warns(RuntimeWarning):
+        result = g.calc_X(verbose=False)
+    flux_result = g.calc_X(lum=False, verbose=False)
+
+    assert result > 0
+    assert flux_result == pytest.approx(
+        10 ** ((np.log10(calls[1] * 1e4 * 1e-26) + 1.3) / 1.37)
+    )
+    assert len(calls) == 2
+    assert calls[0] == pytest.approx(100e9 / (1 + g.z))
+
+
 def test_calculate_model_components_and_total(g):
     nu = np.array([1e10, 2e10, 5e10])
     # call with all keyword parameters

@@ -5,6 +5,7 @@ millimeter quantities are ``nu * L_nu`` at the frequency in the function
 name, rather than monochromatic ``L_nu``.
 """
 
+import warnings
 import numpy as np
 
 from smbh_corona.constants import mJy, pc, pi
@@ -49,24 +50,50 @@ def _linear_relation(luminosity, slope, intercept):
     return 10 ** ((log_luminosity - intercept) / slope)
 
 
+def _warn_outside_calibration(luminosity, relation, lower, upper):
+    luminosity = _positive_array(luminosity, "luminosity")
+    log_luminosity = np.log10(luminosity)
+    if np.any((log_luminosity < lower) | (log_luminosity > upper)):
+        warnings.warn(
+            f"{relation} is calibrated for log10 luminosity in "
+            f"[{lower:g}, {upper:g}]; extrapolating outside this range",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+
+
 def R23_L100_to_LX2(L100):
-    """Return ``L_2-10 keV`` from ``L_100 GHz`` using Ricci et al. 2023."""
+    """Return R23 ``L_2-10 keV`` from rest-frame, de-magnified ``L_100 GHz``."""
+    _warn_outside_calibration(L100, "R23", 36, 41)
     return _linear_relation(L100, slope=1.22, intercept=-13.9)
 
 
 def R23_L100_to_LX(L100):
-    """Return ``L_14-150 keV`` from ``L_100 GHz`` using Ricci et al. 2023."""
+    """Return R23 ``L_14-150 keV`` from rest-frame, de-magnified ``L_100 GHz``."""
+    _warn_outside_calibration(L100, "R23", 36, 41)
     return _linear_relation(L100, slope=1.22, intercept=-14.4)
 
 
 def K22_L230_to_LX2(L230):
-    """Return ``L_2-10 keV`` from ``L_230 GHz`` using Kawamuro et al. 2022."""
+    """Return K22 ``L_2-10 keV`` from rest-frame, de-magnified ``L_230 GHz``."""
+    _warn_outside_calibration(L230, "K22", 37, 41)
     return _linear_relation(L230, slope=1.08, intercept=-7.41)
 
 
 def K22_L230_to_LX(L230):
-    """Return ``L_14-150 keV`` from ``L_230 GHz`` using Kawamuro et al. 2022."""
+    """Return K22 ``L_14-150 keV`` from rest-frame, de-magnified ``L_230 GHz``."""
+    _warn_outside_calibration(L230, "K22", 37, 41)
     return _linear_relation(L230, slope=1.19, intercept=-12.78)
+
+
+def R23_F100_to_FX(F100):
+    """Return R23 ``F_14-150 keV`` from ``nu*F_nu`` at 100 GHz."""
+    return _linear_relation(F100, slope=1.37, intercept=-1.3)
+
+
+def K22_F230_to_FX(F230):
+    """Return K22 ``F_14-150 keV`` from ``nu*F_nu`` at 230 GHz."""
+    return _linear_relation(F230, slope=1.17, intercept=-2.73)
 
 
 def V26a_L100_to_LX2(L100):
@@ -75,6 +102,7 @@ def V26a_L100_to_LX2(L100):
     The relation is expressed as ``log10(L100) - 38 =
     0.15*x**2 + 1.20*x + 0.54``, where ``x = log10(L2-10) - 43``.
     """
+    _warn_outside_calibration(L100, "V26a", 36, 41)
     log_l100 = np.log10(_positive_array(L100, "L100"))
     y = log_l100 - 38.0
     a, b, c = 0.15, 1.20, 0.54
@@ -93,6 +121,7 @@ def V26a_LX2_to_L100(LX2):
 
 
 def L100_to_Lbol(L100):
-    """Return bolometric luminosity from ``L_100 GHz`` using Venselaar et al. 2026a."""
+    """Return bolometric luminosity from rest-frame, de-magnified ``L_100 GHz``."""
+    _warn_outside_calibration(L100, "V26a", 36, 41)
     log_l100 = np.log10(_positive_array(L100, "L100"))
     return 10 ** ((log_l100 + 6.22) / 1.01)

@@ -55,6 +55,16 @@ For tests and notebooks, install the additional development dependencies:
 pip install -r requirements-dev.txt
 ```
 
+Build a wheel with:
+
+```bash
+python -m pip wheel --no-deps --no-build-isolation --wheel-dir /tmp/smbh-corona-wheel .
+```
+
+Observational data are deliberately not bundled in the wheel. Set
+`SMBH_CORONA_DATA_PATH` to a data directory containing `parameters/`, `fluxes/`,
+and `configs/` when using a non-editable installation.
+
 The project can also be checked in the provided mamba environment:
 
 ```bash
@@ -88,6 +98,13 @@ python scripts/galaxy_sed.py NGC985 --fit=False
 Galaxy workflow settings are stored in `data/configs/<name>_config.json`. If a
 galaxy config is missing, the script creates it from `default_config.json` and
 continues. Results are written to `outdir/<name>/`.
+
+The generated `derived_summary.json` reports empirical luminosities after
+correcting for lens magnification, along with direct corona-model diagnostics.
+The peak flux is the observed, magnification-inclusive model flux; peak
+frequencies are reported in both observed and rest frames. R23, K22, and V26a
+relations warn when their input millimeter luminosity is outside their quoted
+calibration range.
 
 ## Mock Validation
 

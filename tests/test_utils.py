@@ -11,10 +11,8 @@ from smbh_corona.utils import (
     calculate_logX,
     L230_to_LX2,
     L230_to_LX,
-    F230_to_FX,
     L100_to_LX2,
     L100_to_LX,
-    F100_to_FX,
     LX_to_Lbol,
     GaussianLikelihood_withUL_andLL,
 )
@@ -74,10 +72,8 @@ def test_x_to_x_relations_consistency():
     assert np.log10(lx2) == pytest.approx((logL - beta) / alpha)
     # Other conversions should yield positive values
     assert L230_to_LX(L) > 0
-    assert F230_to_FX(1e-12) > 0
     assert L100_to_LX2(L) > 0
     assert L100_to_LX(L) > 0
-    assert F100_to_FX(1e-12) > 0
     assert LX_to_Lbol(1e43) == pytest.approx(8.48e43)
 
 

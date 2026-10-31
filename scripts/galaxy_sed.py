@@ -631,8 +631,6 @@ def _save_derived_summary(galaxy_name, galaxy, results, model_parameters, config
         "galaxy": galaxy_name,
         "relation": "Venselaar et al. 2026a",
         "rest_frequency_ghz": 100.0,
-        "intrinsic": True,
-        "demagnified": True,
         "scatter_applied": {
             "L2_10_dex": V26A_XRAY_SCATTER_DEX,
             "Lbol_dex": V26A_BOLOMETRIC_SCATTER_DEX,

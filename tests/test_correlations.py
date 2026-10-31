@@ -2,9 +2,11 @@ import numpy as np
 import pytest
 
 from smbh_corona.correlations import (
+    K22_F230_to_FX,
     K22_L230_to_LX,
     K22_L230_to_LX2,
     L100_to_Lbol,
+    R23_F100_to_FX,
     R23_L100_to_LX,
     R23_L100_to_LX2,
     V26a_L100_to_LX2,
@@ -22,8 +24,13 @@ def test_linear_relations_match_published_coefficients():
     assert np.log10(K22_L230_to_LX(L230)) == pytest.approx((40 + 12.78) / 1.19)
 
 
+def test_flux_relations_match_existing_coefficients():
+    assert np.log10(R23_F100_to_FX(1e-12)) == pytest.approx((-12 + 1.3) / 1.37)
+    assert np.log10(K22_F230_to_FX(1e-12)) == pytest.approx((-12 + 2.73) / 1.17)
+
+
 def test_v26a_round_trip():
-    L100 = np.logspace(37, 42, 20)
+    L100 = np.logspace(37, 41, 20)
     LX2 = V26a_L100_to_LX2(L100)
     assert np.allclose(V26a_LX2_to_L100(LX2), L100)
 
@@ -37,10 +44,15 @@ def test_v26a_and_bolometric_relations_match_equations():
 
 
 def test_correlations_vectorize_and_reject_nonpositive_values():
-    values = np.array([1e38, 1e40, 1e42])
+    values = np.array([1e38, 1e40, 1e41])
     assert R23_L100_to_LX2(values).shape == values.shape
     with pytest.raises(ValueError):
         R23_L100_to_LX2(0)
+
+
+def test_correlation_warns_outside_calibration_range():
+    with pytest.warns(RuntimeWarning, match="R23 is calibrated"):
+        R23_L100_to_LX2(1e42)
 
 
 def test_flux_to_nu_luminosity_uses_cgs_units_and_demagnifies():

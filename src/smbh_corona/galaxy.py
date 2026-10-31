@@ -13,7 +13,15 @@ from smbh_corona.plot_utils import plot_components
 
 from smbh_corona.constants import *
 from smbh_corona.config import FLUX_PATH, PARAMETERS_PATH
-from smbh_corona.utils import Omega_beam, ang_to_lin, get_f_sys, L100_to_LX, L100_to_LX2, L230_to_LX, L230_to_LX2, F100_to_FX, F230_to_FX
+from smbh_corona.utils import Omega_beam, ang_to_lin, get_f_sys
+from smbh_corona.correlations import (
+    K22_F230_to_FX,
+    K22_L230_to_LX,
+    K22_L230_to_LX2,
+    R23_F100_to_FX,
+    R23_L100_to_LX,
+    R23_L100_to_LX2,
+)
 import smbh_corona.corona_sed
 from smbh_corona.diffuse_emission import RJ_dust, pl_emission, pl_emission_abs, pl_emission_cl_abs
 
@@ -578,10 +586,12 @@ class Galaxy:
         return np.array(all_S_samples), np.array(all_Scor_samples), np.array(all_Sdust_samples), np.array(all_Sff_samples), np.array(all_Ssy_samples)
 
     def calc_X(self, rel="R23", lum=True, verbose=True, corona_only=False, model_parameters=None):
-        '''Calculate the intrinsic X-ray emission from the correlation between mm and X-ray emission.
+        '''Calculate X-ray emission from the local-galaxy mm/X-ray correlations.
         If lum=True it returns L_X(14-150 keV) in erg/s, else F_X(14-150 keV) in erg/s/cm2
         If verbose=True it prints a message with the emission at 2-10 keV and at 14-150 keV
         If corona_only=True it uses only the flux from the corona to estimate L_X, else the total flux
+
+        Correlations use rest-frame, de-magnified millimeter luminosities.
 
         Accepted relations:
         "R23": uses Ricci+ 2023 correlation between X-ray luminosity and 100 GHz luminosity (default)
@@ -593,7 +603,10 @@ class Galaxy:
 
         # Convert frequencies to the observed frame and calculate the SED
         nu = 100e9/(1 + self.z) if rel == "R23" else 230e9/(1 + self.z)     # in Hz
-        self.calculate_model(nu, *model_parameters)
+        if model_parameters is None:
+            self.calculate_model(nu)
+        else:
+            self.calculate_model(nu, *model_parameters)
 
         # Use the whole flux or only the one coming from the corona to estimate L_X
         Fnu = self.S_cor[0] if corona_only else self.S_tot[0]
@@ -605,16 +618,16 @@ class Galaxy:
             dil = 4 * pi * d**2
             nuLnu = nuFnu * dil        # nu*L_nu in erg/s
             if rel == "R23" and lum:
-                X = L100_to_LX(nuLnu)
-                X2 = L100_to_LX2(nuLnu)
+                X = R23_L100_to_LX(nuLnu)
+                X2 = R23_L100_to_LX2(nuLnu)
             else:
-                X = L230_to_LX(nuLnu)
-                X2 = L230_to_LX2(nuLnu)
+                X = K22_L230_to_LX(nuLnu)
+                X2 = K22_L230_to_LX2(nuLnu)
         else:
             if rel == "R23":
-                X = F100_to_LX(nuFnu)
+                X = R23_F100_to_FX(nuFnu)
             else:
-                X = F230_to_LX(nuFnu)
+                X = K22_F230_to_FX(nuFnu)
 
         if verbose:
             if lum:
