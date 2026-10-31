@@ -1,164 +1,122 @@
-# sed_fitter_BHcorona
+# SMBH Corona SED Fitter
 
-This package provides a framework to derive physical information of supermassive black hole (SMBH) coronae by modelling their spectral energy distribution (SED) from radio to far-infrared frequencies. We introduce a corona emission model based on a one-zone spherical region with a hybrid thermal and non-thermal plasma based on [Inoue et al. (2019)](https://ui.adsabs.harvard.edu/#abs/2019ApJ...880...40I/abstract). We use a slightly modified version of the numerical code from
-[Margalit & Quataert (2021, 2024)](https://github.com/bmargalit/thermal-synchrotron) to compute the synchrotron SED of a hybrid plasma.
-In addition to the physical coronal model, we include phenomenological continuum-emission components. To fit the SEDs in a flexible and robust way, we use the package Bilby [Ashton et al. 2019](https://ui.adsabs.harvard.edu/abs/2019ApJS..241...27A/abstract). Further details of the model are provided in [del Palacio et al. (2025)](https://ui.adsabs.harvard.edu/abs/2025A%26A...701A..41D/abstract).
+Fit radio-to-far-infrared spectral energy distributions with a hybrid thermal
+and non-thermal black-hole corona model plus dust, free-free, and extended
+synchrotron components.
 
+<img src="figs/SED_IC4329A.png" width="400"/>
 
-## Project
+*Example SED showing the model components and 1-sigma confidence intervals.*
 
-This repository contains the code and data used for the paper *Millimeter
-emission from supermassive black hole coronae* 
-[del Palacio et al. (2025)](https://ui.adsabs.harvard.edu/abs/2025A%26A...701A..41D/abstract). 
-The paper version is preserved by Git tag
-`v0.1.0`; current development and integration work is performed on `main`.
+## Quick start
 
-The model combines four components: black-hole corona synchrotron emission,
-modified dust emission, free-free emission, and extended synchrotron emission.
-The main implementation is in `src/smbh_corona/`; source data and initial
-parameters are in `data/`.
+Supported runtime: Python 3.10 or newer and Bilby 2.8.2 or newer.
 
-The repository also contains notebooks for fitting individual sources,
-exploring model parameters, and producing correlation and derived-quantity
-plots. Generated figures and sampler outputs are not required for installation.
-
-If new sources are added, include a flux file and an initial-parameter file in
-the corresponding folders within `data/`, following the existing conventions.
-The repository uses `data/` by default. To keep data outside the source checkout,
-set `SMBH_CORONA_DATA_PATH` to a directory containing `parameters/` and `fluxes/`:
+From the repository root, install and run the bundled NGC985 example:
 
 ```bash
-export SMBH_CORONA_DATA_PATH=/path/to/smbh-corona-data
-```
-
-Flux files use six columns:
-
-```text
-frequency_GHz flux_mJy flux_error_mJy beam_major_arcsec beam_minor_arcsec flag
-```
-
-Flags identify detections (`0`), upper limits (`1`), fake or diagnostic points
-(`2`), and lower limits (`4`).
-
-## Installation
-
-The supported runtime is Python 3.10 or newer with Bilby 2.8.2 or newer.
-
-```bash
-git clone https://github.com/santimda/sed_fitter_BHcorona.git
-cd sed_fitter_BHcorona
-pip install -r requirements.txt
-pip install -e .
-```
-
-For tests and notebooks, install the additional development dependencies:
-
-```bash
-pip install -r requirements-dev.txt
-```
-
-Build a wheel with:
-
-```bash
-python -m pip wheel --no-deps --no-build-isolation --wheel-dir /tmp/smbh-corona-wheel .
-```
-
-Observational data are deliberately not bundled in the wheel. Set
-`SMBH_CORONA_DATA_PATH` to a data directory containing `parameters/`, `fluxes/`,
-and `configs/` when using a non-editable installation.
-
-The project can also be checked in the provided mamba environment:
-
-```bash
-mamba activate corona
-python -m pytest -q
-```
-
-## Example
-
-Run the example from the repository root:
-
-```bash
-python scripts/example.py
-```
-
-The script evaluates the NGC985 model and writes `NGC985_model_sed.txt` in the
-current directory. Plotting may require a working LaTeX installation.
-
-Run the complete NGC985 fit and plotting workflow with:
-
-```bash
+python -m pip install -r requirements.txt
+python -m pip install -e .
 python scripts/galaxy_sed.py NGC985
 ```
 
-To regenerate the plots from the saved result without fitting again, use:
+The fit, posterior corner plot, and SED plot are written to `outdir/NGC985/`.
+The main summaries are `fit_summary.json` and `derived_summary.json`. A new fit
+replaces the previous outputs for that source.
+
+To regenerate the SED plot from an existing fit without fitting again:
 
 ```bash
 python scripts/galaxy_sed.py NGC985 --fit=False
 ```
 
-Galaxy workflow settings are stored in `data/configs/<name>_config.json`. If a
-galaxy config is missing, the script creates it from `default_config.json` and
-continues. Results are written to `outdir/<name>/`.
+SED plotting uses LaTeX. Install a LaTeX distribution if plot generation fails
+because `latex` is unavailable.
 
-The generated `derived_summary.json` reports empirical luminosities after
-correcting for lens magnification, along with direct corona-model diagnostics.
-The peak flux is the observed, magnification-inclusive model flux; peak
-frequencies are reported in both observed and rest frames. R23, K22, and V26a
-relations warn when their input millimeter luminosity is outside their quoted
-calibration range.
+## Run a fit for your source
 
-## Mock Validation
+For a source named `SOURCE`, provide its parameter and flux files:
 
-The deterministic `test_galaxy` fixture validates the current fitting workflow
-with radio/mm, far-infrared, and high-frequency points. The validation script
-regenerates the data file from the truth parameters with noiseless model fluxes
-and 3% statistical errors, fits seven free parameters, and verifies that
-the injected values are within their 1-sigma posterior intervals. The normal
-data loader adds the configured systematic uncertainties before fitting. 
-
-Run the default validation from the repository root:
-
-```bash
-MPLBACKEND=Agg python tests/validation_test/fit_mock_galaxy.py
+```text
+data/parameters/SOURCE.par
+data/fluxes/SOURCE_flux.dat
 ```
 
-The default run uses 32 walkers and 2000 steps and writes the regenerated flux
-file to `data/fluxes/test_galaxy_flux.dat` and its summary, SED plot, and corner
-plot to `tests/validation_test/validation_output/`. A shorter recovery check runs as part of the
-default pytest suite.
+The parameter file is a JSON dictionary. The flux file has six whitespace-
+separated columns:
 
-The separate mixed-limit validation uses the same model but writes detections
-between 100 and 300 GHz and paired lower/upper limits at the other frequencies
-into the same six-column flux file. The validation runs once with the soft
-(`w=1`) treatment and once with the strict (`w=10`) treatment:
+```text
+frequency_GHz flux_mJy flux_error_mJy beam_major_arcsec beam_minor_arcsec flag
+```
+
+Flags are `0` for detections, `1` for upper limits, `2` for fake/diagnostic
+points (e.g. for simulations when preparing observing proposals), and `4` for 
+lower limits. Statistical uncertainties are combined with the configured systematic 
+error during data loading.
+
+Optional source settings live in `data/configs/SOURCE_config.json`. If this file
+is missing, the script copies `default_config.json` and immediately continues
+with the fit. Create or review the config before running if the default fit
+parameters, model settings, or output location are not appropriate. The config's
+`output.root` setting controls where run files are written.
+
+To store input data outside the checkout, set `SMBH_CORONA_DATA_PATH` to a
+directory containing all three data subdirectories:
+
+```text
+parameters/
+fluxes/
+configs/
+```
+
+For example:
+
+```bash
+export SMBH_CORONA_DATA_PATH=/path/to/smbh-corona-data
+python scripts/galaxy_sed.py SOURCE
+```
+
+The wheel does not include observational data; non-editable installations must
+use this external-data setting.
+
+`derived_summary.json` includes empirical total and corona-only luminosities
+corrected for magnification, plus direct corona diagnostics. `S_peak_mJy` is the
+observed model flux including magnification; peak frequencies are given in
+observed and rest frames. R23, K22, and V26a correlation functions warn when
+their input luminosities are outside the quoted calibration range.
+
+## Tests and validation
+
+Run the test suite with:
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+The suite includes a short synthetic fit-recovery check. Longer standalone
+validations are available for mixed upper/lower limits and the empirical
+correlation plots:
 
 ```bash
 MPLBACKEND=Agg python tests/validation_test/fit_mock_limits.py
-```
-
-Each run writes a fit plot, corner plot, and summary named for its `w` value.
-Bilby sampler chains and pickle files are removed after the validation completes.
-
-The limit widths use the loaded statistical and systematic errors. Larger `w`
-values narrow the effective one-sided Gaussian width and therefore penalize model
-predictions outside the limits more strongly.
-
-The custom likelihood consumes model parameters through Bilby's explicit
-parameter-dictionary API; this was tested with Bilby 2.8.2.
-
-## Correlation Diagnostics
-
-The empirical millimeter/X-ray relations are implemented in
-`src/smbh_corona/correlations.py`. The diagnostic script plots `L_X` on the
-horizontal axis and `L_mm` on the vertical axis, showing R23 and the single
-V26a relation at 100 GHz, and K22 at 230 GHz, including their quoted intrinsic
-scatter bands:
-
-```bash
 MPLBACKEND=Agg python tests/validation_test/plot_correlations.py
 ```
 
-It writes `L100_vs_LX_correlations.pdf` and `L230_vs_LX_K22.pdf` to
-`tests/validation_test/validation_output/`. The later V26b 145 GHz relation is intentionally not
-included yet.
+The mock validation scripts generate files under `data/fluxes/` and
+`tests/validation_test/validation_output/`.
+
+## Citation
+
+If you use this model, please cite:
+
+- del Palacio et al. (2025), *Astronomy & Astrophysics*, 701, 41,
+  [main reference paper](https://ui.adsabs.harvard.edu/abs/2025A%26A...701A..41D/abstract).
+
+
+Other relevant references:
+
+- Inoue et al. (2019), [corona model](https://ui.adsabs.harvard.edu/#abs/2019ApJ...880...40I/abstract).
+- Margalit & Quataert (2021, 2024),
+  [thermal-synchrotron implementation](https://github.com/bmargalit/thermal-synchrotron).
+- Mutie et al. (2024), [application to NGC 1068](https://ui.adsabs.harvard.edu/abs/2025MNRAS.539..808M/abstract).
