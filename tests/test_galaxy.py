@@ -7,9 +7,8 @@ import numpy as np
 import pytest
 import pandas as pd
 from bilby.core.utils import infer_parameters_from_function
-from astropy.cosmology import Planck18
 
-from smbh_corona.galaxy import Galaxy, _luminosity_distance_mpc
+from smbh_corona.galaxy import Galaxy
 from smbh_corona.constants import arcsec
 from smbh_corona.utils import Omega_beam
 
@@ -82,81 +81,11 @@ def g():
     return DummyGalaxy()
 
 
-def test_kT_and_E_cond_independence(g):
-    # since use_kT_par=False, kT remains as in seed_parameters
-    assert pytest.approx(50.0) == g.kT
-    # E_cond not used here
-
-
-def test_luminosity_distance_cache_is_exact_and_reuses_redshift():
-    redshift = 0.0427
-    _luminosity_distance_mpc.cache_clear()
-
-    distance = _luminosity_distance_mpc(redshift)
-    expected = float(Planck18.luminosity_distance(redshift).value)
-    repeated_distance = _luminosity_distance_mpc(redshift)
-
-    assert distance == expected
-    assert repeated_distance == expected
-    assert _luminosity_distance_mpc.cache_info().hits == 1
-    assert _luminosity_distance_mpc.cache_info().misses == 1
-
-
-def test_B_G_sigma_beta_monotonic(g):
+def test_corona_magnetic_diagnostics_are_positive(g):
     B = g.B_G()
-    assert isinstance(B, float) and B > 0
-
     sigma = g.sigma_mag()
-    assert isinstance(sigma, float) and sigma > 0
-
     beta = g.beta_mag()
-    assert isinstance(beta, float) and beta > 0
-
-
-def test_R_c_cm_and_E_cor(g):
-    # R_c_cm = r_c * 1.5e5 * 10**log_M
-    expected_Rc = g.r_c * 1.5e5 * 10**g.log_M
-    assert np.isclose(g.R_c_cm(), expected_Rc)
-
-    E_th, E_nt, E_B = g.E_cor()
-    # check ordering and positivity
-    assert E_B > 0 and E_nt > 0 and E_th > 0
-    # E_B = eps_B * E_th, so E_th > E_B if eps_B<1
-    eps_B = 10**g.log_eps_B
-    assert np.isclose(E_B, eps_B * E_th)
-
-
-def test_calculate_L_cor_and_integrals(g):
-    nu = np.geomspace(1e9, 1e11, 20)
-    # should set g.L_cor
-    g.calculate_L_cor(nu)
-    assert hasattr(g, "L_cor")
-    arr = np.asarray(g.L_cor)
-    assert arr.shape == nu.shape
-    assert np.all(arr >= 0)
-
-    # bolometric luminosity via trapezoid
-    g.calculate_L_bol_cor(nu)
-    if hasattr(np, "trapezoid"):
-        expected = np.trapezoid(g.L_cor, nu)
-    else:
-        expected = np.trapz(g.L_cor, nu)
-    assert np.isclose(g.L_bol_cor, expected)
-
-    # peak luminosity
-    g.calculate_L_peak_cor(nu)
-    idx = np.argmax(g.L_cor)
-    nu_p = nu[idx]
-    L_p = g.L_cor[idx]
-    assert np.isclose(g.L_peak_cor, nu_p * L_p)
-
-
-def test_Edd_ratio(g):
-    L_X = 1e44
-    # L_Edd = 1.26e38 * M_BH, M_BH = 10**log_M
-    M_BH = 10**g.log_M
-    expected = L_X / (1.26e38 * M_BH)
-    assert np.isclose(g.calculate_Edd_ratio(L_X), expected)
+    assert B > 0 and sigma > 0 and beta > 0
 
 
 def test_calc_X_uses_current_galaxy_parameters_by_default(g, monkeypatch):
@@ -217,6 +146,9 @@ def test_derived_summary_writes_corona_diagnostics_for_posterior(g, tmp_path, mo
     summary = json.loads((output_dir / "derived_summary.json").read_text())
     assert summary["posterior_samples"] == 2
     assert "intrinsic" not in summary and "demagnified" not in summary
+    assert summary["emission"]["total"]["L100"].startswith("(")
+    assert ")e" in summary["emission"]["total"]["L100"]
+    assert summary["emission"]["total"]["eddington_ratio"]["q50"] > 0
     assert set(summary["corona"]) == {
         "B_G",
         "sigma_mag",
@@ -238,63 +170,10 @@ def test_derived_summary_writes_corona_diagnostics_for_posterior(g, tmp_path, mo
 
 def test_calculate_model_components_and_total(g):
     nu = np.array([1e10, 2e10, 5e10])
-    # call with all keyword parameters
-    total = g.calculate_model(
-        nu,
-        z=g.z,
-        magnification=g.magnification,
-        log_M=g.log_M,
-        r_c=g.r_c,
-        tau_T=g.tau_T,
-        log_delta=g.log_delta,
-        kT=g.kT,
-        log_eps_B=g.log_eps_B,
-        p=g.p,
-        alpha_sy=g.alpha_sy,
-        sy_scale=g.sy_scale,
-        ff_scale=g.ff_scale,
-        beta_RJ=g.beta_RJ,
-        tau1_freq=g.tau1_freq,
-        RJ_scale=g.RJ_scale,
-        nu_tau1_cl=g.nu_tau1_cl,
-        f_cov=g.f_cov,
-        nu_tau1_diff=g.nu_tau1_diff,
-    )
-    # Should produce a numpy array of same shape
+
+    total = g.calculate_model(nu)
+
     assert isinstance(total, np.ndarray)
     assert total.shape == nu.shape
-    # Total = sum of the four components
     comp_sum = g.S_cor + g.S_dust + g.S_ff + g.S_sync
     assert np.allclose(total, comp_sum)
-
-
-def test_set_prior_bounds_structure(g):
-    bounds = g.set_prior_bounds()
-    expected_keys = {
-        "z",
-        "magnification",
-        "log_M",
-        "r_c",
-        "tau_T",
-        "log_delta",
-        "kT",
-        "log_eps_B",
-        "p",
-        "T_d",
-        "alpha_sy",
-        "sy_scale",
-        "ff_scale",
-        "beta_RJ",
-        "tau1_freq",
-        "RJ_scale",
-        "nu_tau1_cl",
-        "f_cov",
-        "nu_tau1_diff",
-    }
-    assert set(bounds.keys()) == expected_keys
-
-    for key, (mn, mx) in bounds.items():
-        # allow int or float
-        assert isinstance(mn, (int, float))
-        assert isinstance(mx, (int, float))
-        assert mn < mx

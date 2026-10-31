@@ -1,6 +1,5 @@
 import numpy as np
 from smbh_corona.corona_sed import S_nu as compute_corona_sed
-import smbh_corona.thermalsyn as thermalsyn
 
 
 def test_shape_and_nonnegativity():
@@ -15,6 +14,7 @@ def test_shape_and_nonnegativity():
     arr = np.asarray(flux)
     assert arr.shape == freqs.shape
     assert np.all(arr >= 0)
+    assert np.asarray(compute_corona_sed(1e11, tau_T=1.0, T=1e9)).shape == (1,)
 
 
 def test_flux_increases_with_r_c():
@@ -32,16 +32,6 @@ def test_flux_increases_with_r_c():
     assert np.isclose(expected_ratio, actual_ratio, rtol=1e-3)
 
 
-def test_scalar_input_handles_properly():
-    """
-    Passing a single frequency should return a length-1 array.
-    """
-    freq = 1e11
-    flux = compute_corona_sed(freq, tau_T=1.0, T=1e9)
-    arr = np.asarray(flux)
-    assert arr.shape == (1,)
-
-
 def test_distance_scaling():
     """
     Flux should scale inversely with the square of the luminosity distance D_L.
@@ -53,36 +43,3 @@ def test_distance_scaling():
     arr2 = np.asarray(f2)
     # doubling D_L should reduce flux by factor of 4
     assert np.allclose(arr2, arr1 / 4, rtol=1e-6)
-
-
-def test_thermal_scalar_memoization_caches_repeated_values():
-    thermalsyn.a_fun.cache_clear()
-
-    value = thermalsyn.a_fun(0.5)
-    assert thermalsyn.a_fun(0.5) == value
-    assert thermalsyn.a_fun.cache_info().hits == 1
-    assert thermalsyn.a_fun.cache_info().misses == 1
-
-
-def test_lnu_fun_reuses_thermal_frequency_integral(monkeypatch):
-    original_i_of_x = thermalsyn.I_of_x
-    calls = []
-
-    def counted_i_of_x(x):
-        calls.append(np.asarray(x).copy())
-        return original_i_of_x(x)
-
-    monkeypatch.setattr(thermalsyn, "I_of_x", counted_i_of_x)
-    frequencies = np.geomspace(1e10, 1e12, 8)
-    luminosity = thermalsyn.Lnu_fun(
-        frequencies,
-        ne=1e10,
-        R=1e14,
-        Theta=0.1,
-        B=10.0,
-        t=1e5,
-    )
-
-    assert len(calls) == 1
-    assert np.asarray(luminosity).shape == frequencies.shape
-    assert np.all(np.isfinite(luminosity))

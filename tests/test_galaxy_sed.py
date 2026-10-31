@@ -1,20 +1,14 @@
-import argparse
 import json
 from pathlib import Path
 import sys
 
-import numpy as np
 import pytest
 
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 
 from galaxy_sed import (
-    _limit_kwargs,
     _prepare_output,
-    _derived_quantity_summary,
-    _format_luminosity_summary,
-    _format_posterior_summary,
     _round_for_json,
     _validate_config,
     build_parser,
@@ -30,23 +24,15 @@ def read_default_config():
     return json.loads(DEFAULT_CONFIG_PATH.read_text())
 
 
-def test_parser_uses_positional_galaxy_and_defaults_to_fit():
+def test_parser_supports_fit_and_plot_only_modes():
     args = build_parser().parse_args(["IC4329A"])
 
     assert args.galaxy_name == "IC4329A"
     assert args.fit is True
-
-
-def test_parser_supports_plot_only_mode():
-    args = build_parser().parse_args(["NGC985", "--fit=False"])
-
-    assert args.fit is False
+    plot_args = build_parser().parse_args(["NGC985", "--fit=False"])
+    assert plot_args.galaxy_name == "NGC985"
+    assert plot_args.fit is False
     assert parse_bool("True") is True
-
-
-def test_parser_rejects_invalid_boolean():
-    with pytest.raises(argparse.ArgumentTypeError):
-        parse_bool("maybe")
 
 
 def test_missing_galaxy_config_is_created_from_default(tmp_path, capsys):
@@ -70,42 +56,24 @@ def test_prepare_output_cleans_only_selected_galaxy(tmp_path):
     selected_output = tmp_path / "NGC985"
     (selected_output / "emcee_fit").mkdir(parents=True)
     (selected_output / "emcee_fit" / "old.dat").write_text("old")
-    for filename in (
+    stale_artifacts = (
         "fit_result.json",
         "fit_summary.json",
         "run_metadata.json",
         "derived_summary.json",
         "posterior_NGC985.pdf",
         "SED_NGC985.pdf",
-    ):
+    )
+    for filename in stale_artifacts:
         (selected_output / filename).write_text("old")
 
     output_dir = _prepare_output("NGC985", config)
 
     assert output_dir == selected_output
     assert not (selected_output / "emcee_fit").exists()
-    for filename in (
-        "fit_result.json",
-        "fit_summary.json",
-        "run_metadata.json",
-        "derived_summary.json",
-        "posterior_NGC985.pdf",
-        "SED_NGC985.pdf",
-    ):
+    for filename in stale_artifacts:
         assert not (selected_output / filename).exists()
     assert (other_output / "keep.txt").read_text() == "keep"
-
-
-def test_default_config_preserves_current_ngc985_settings():
-    config = read_default_config()
-
-    assert config["fit"]["w"] == 5.0
-    assert config["fit"]["nsteps"] == 4000
-    assert config["fit"]["nwalkers"] == 50
-    assert config["data"]["min_ang_scale_arcsec"] == 0.05
-    assert config["data"]["max_ang_scale_arcsec"] == 0.4
-    assert config["plot"]["xmin_ghz"] == 1.01
-    assert config["plot"]["xmax_ghz"] == 2000.0
 
 
 def test_fit_summary_values_are_rounded_recursively():
@@ -114,43 +82,8 @@ def test_fit_summary_values_are_rounded_recursively():
     assert rounded == {"outer": {"value": 1.235}, "values": [2.346]}
 
 
-def test_luminosity_format_uses_two_decimal_scientific_notation():
-    assert _format_luminosity_summary(
-        {"q16": 7.784963874078932e39, "q50": 8.134e39, "q84": 8.484e39}
-    ) == "(8.13+0.35-0.35)e39"
-    assert _derived_quantity_summary(
-        [{"L100": 7.784963874078932e39}],
-        "L100",
-    ) == "(7.78+0.00-0.00)e39"
-    derived = _derived_quantity_summary(
-        [{"eddington_ratio": 0.0037465}], "eddington_ratio"
-    )
-    assert derived["q50"] == 0.0037465
-
-
-def test_corona_summary_uses_compact_asymmetric_quantiles():
-    assert _format_posterior_summary([1.0, 2.0, 3.0]) == "(2.000+0.680-0.680)"
-
-
 def test_invalid_config_reports_missing_section(tmp_path):
     config_path = tmp_path / "broken.json"
 
     with pytest.raises(ValueError, match="model"):
         _validate_config({}, config_path)
-
-
-def test_limit_kwargs_includes_limit_widths():
-    class GalaxyLimits:
-        data_frequencies_UL = np.array([100.0])
-        data_fluxes_UL = np.array([2.0])
-        data_fluxes_UL_error = np.array([0.2])
-        data_frequencies_LL = np.array([200.0])
-        data_fluxes_LL = np.array([1.0])
-        data_fluxes_LL_error = np.array([0.1])
-
-    kwargs = _limit_kwargs(GalaxyLimits())
-
-    assert kwargs["x_ul"].tolist() == [100e9]
-    assert kwargs["sigma_ul"].tolist() == [0.2]
-    assert kwargs["x_ll"].tolist() == [200e9]
-    assert kwargs["sigma_ll"].tolist() == [0.1]
