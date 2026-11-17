@@ -4,7 +4,7 @@ Fit radio-to-far-infrared spectral energy distributions with a hybrid thermal
 and non-thermal black-hole corona model plus dust, free-free, and extended
 synchrotron components.
 
-<img src="figs/SED_IC4329A.png" width="400"/>
+<img src="figs/SED_IC4329A.png" width="450"/>
 
 *Example SED showing the model components and 1-sigma confidence intervals.*
 
